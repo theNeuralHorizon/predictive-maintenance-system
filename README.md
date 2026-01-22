@@ -25,39 +25,50 @@ Unplanned equipment downtime costs global manufacturers an estimated **$50 billi
 
 ## 🏗 System Architecture
 
-The system follows an **Event-Driven Microservices** architecture to ensure scalability and decoupling.
+The system operates on a **Hybrid Cloud** architecture, leveraging serverless frontend hosting and secure tunneling to expose on-premise inference resources without incurring cloud computing costs.
 
-```mermaid
-graph TD
-    subgraph "Ingestion Layer"
-        S[Sensors] -->|JSON Stream| KB[Kafka Broker]
-        KB -->|Topic: sensor-data| C{Consumer Service}
-    end
-
-    subgraph "Processing Layer"
-        C -->|Raw Data| FE[Feature Engineering]
-        FE -->|Rolling Stats| SC[Standard Scaler]
-        SC -->|Normalized Vector| ML[Inference Engine]
-    end
-
-    subgraph "ML Components"
-        ML -->|Score| IF["Isolation Forest (Anomaly)"]
-        ML -->|Prob| RF["Random Forest (Failure)"]
-        ML -->|Check| DD["Drift Detector (KS-Test)"]
-    end
-
-    subgraph "Serving Layer"
-        ML -->|Result| API[FastAPI Backend]
-        API -->|REST| UI[React Dashboard]
-        API -->|Metrics| PM["Prometheus / Grafana"]
-    end
+```text
+[ User Browser ]
+       |
+    (HTTPS)
+       v
+[ Vercel CDN ] <-----> [ React Frontend ]
+       |
+    (API Request)
+       v
+[ Cloudflare Edge ]
+       |
+    (Secure Tunnel / HTTP2)
+       v
+[ On-Premise / Local Server ]
+       |
+   [ cloudflared ]
+       |
+    (Internal Docker Network)
+       |
+[ Nginx Reverse Proxy ]
+       |
+       v
+[ FastAPI Backend ] ----> [ Scikit-Learn Models ]
+       |
+    (Async Event)
+       v
+[ Kafka Broker ]
 ```
 
-### Key Components
-- **Ingestion**: Apache Kafka handles high-throughput sensor streams.
-- **Backend**: FastAPI (Python 3.11) serves predictions and manages background inference tasks.
-- **ML Engine**: Scikit-learn models wrapped in a production service with model versioning and drift detection.
-- **Frontend**: React + Vite dashboard for real-time visualization of machine health.
+### Data Flow Breakdown
+1.  **Frontend Serving**: The React SPA is hosted on **Vercel**, ensuring global low-latency delivery of static assets.
+2.  **Secure Ingress**: **Cloudflare Tunnel** creates an encrypted connection between the public internet and the local network. This eliminates the need for port forwarding, public IPs, or VPNs, significantly reducing the attack surface.
+3.  **Request Processing**:
+    *   **Nginx**: Acts as a reverse proxy to handle request buffering and header normalization.
+    *   **FastAPI**: Validates input data and triggers inference.
+    *   **Inference**: The `RandomForest` and `IsolationForest` models process the vector to return failure probabilities.
+4.  **Async Ingestion**: Data is simultaneously produced to **Kafka** for decoupled storage and future batch processing.
+
+### Engineering Decisions
+*   **Why Cloudflare Tunnel?**: Provides enterprise-grade security (DDoS protection, TLS termination) for a local development machine, mimicking a private VPC setup without the cost or complexity.
+*   **Why Docker?**: Ensures the ML environment (Python dependencies, system libraries) is identical across development and production, preventing "it works on my machine" issues.
+*   **Why Hybrid?**: Decoupling the lightweight frontend (Vercel) from the compute-heavy backend allows for independent scaling and cost optimization (Serverless UI + Owned Compute).
 
 ---
 
