@@ -30,7 +30,8 @@ const Dashboard = () => {
         setResult(null);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/predict', formData);
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await axios.post(`${API_URL}/api/predict`, formData);
             setResult(response.data);
         } catch (err) {
             setError("Failed to fetch prediction. Ensure backend is running.");
@@ -105,8 +106,8 @@ const Dashboard = () => {
                             <div className="w-full flex flex-col items-center animate-fade-in">
                                 {/* Status Badge */}
                                 <div className={`px-6 py-2 rounded-full text-lg font-bold mb-8 ${result.anomaly
-                                        ? 'bg-red-100 text-red-700 border border-red-200'
-                                        : 'bg-green-100 text-green-700 border border-green-200'
+                                    ? 'bg-red-100 text-red-700 border border-red-200'
+                                    : 'bg-green-100 text-green-700 border border-green-200'
                                     }`}>
                                     {result.anomaly ? '⚠ ANOMALY DETECTED' : '✔ NORMAL OPERATION'}
                                 </div>

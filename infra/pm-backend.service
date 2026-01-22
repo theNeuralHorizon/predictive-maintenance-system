@@ -1,0 +1,17 @@
+[Unit]
+Description=Predictive Maintenance Backend (Podman Compose)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/kshitij/codespace/predictive-maintenance-system
+# Adjust path if podman-compose is elsewhere (check `which podman-compose`)
+ExecStart=/usr/bin/podman-compose -f infra/docker-compose.yml up --exit-code-from backend
+ExecStop=/usr/bin/podman-compose -f infra/docker-compose.yml down
+Restart=always
+User=kshitij
+Group=kshitij
+# Environment variables can be added here if needed
+
+[Install]
+WantedBy=multi-user.target

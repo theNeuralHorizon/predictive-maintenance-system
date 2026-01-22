@@ -1,0 +1,15 @@
+[Unit]
+Description=Cloudflare Tunnel for Predictive Maintenance
+After=network.target pm-backend.service
+
+[Service]
+Type=simple
+# Exposes localhost:8000 to the public internet via a random or named tunnel
+ExecStart=/usr/bin/cloudflared tunnel --url http://localhost:8000
+Restart=always
+User=kshitij
+Group=kshitij
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
