@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 class MachineData(BaseModel):
+    udi: int | None = Field(None, alias="UDI", description="Unique Identifier")
     air_temperature: float = Field(..., alias="Air temperature [K]", description="Air temperature in Kelvin")
     process_temperature: float = Field(..., alias="Process temperature [K]", description="Process temperature in Kelvin")
     rotational_speed: float = Field(..., alias="Rotational speed [rpm]", description="Rotational speed in RPM")

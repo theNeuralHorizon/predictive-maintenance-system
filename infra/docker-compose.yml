@@ -16,6 +16,7 @@ services:
       - kafka
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MODEL_VERSION=v1
 
   zookeeper:
     image: bitnami/zookeeper:latest

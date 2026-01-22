@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: predictive-maintenance-api
+    runtime: docker
+    dockerfilePath: ./infra/Dockerfile.backend
+    context: .
+    envVars:
+      - key: MODEL_VERSION
+        value: v3
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        value: "" # Leave empty or provide external Kafka URL
+    healthCheckPath: /
+    plan: free
+    region: oregon

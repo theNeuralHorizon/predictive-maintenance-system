@@ -6,7 +6,7 @@ import os
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
 
-def preprocess_data(df: pd.DataFrame, is_training: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame, Optional[StandardScaler]]:
+def preprocess_data(df: pd.DataFrame, is_training: bool = True, scaler_path: str = None) -> Tuple[pd.DataFrame, pd.DataFrame, Optional[StandardScaler]]:
     """
     Preprocesses data: drops IDs, scales features.
     Returns: (X, y, scaler)
@@ -34,12 +34,16 @@ def preprocess_data(df: pd.DataFrame, is_training: bool = True) -> Tuple[pd.Data
         y = None
         
     # Scaling
-    scaler_path = os.path.join(ARTIFACTS_DIR, "scaler.joblib")
+    # Default path fallback ONLY if not provided
+    if not scaler_path:
+         # raise ValueError("scaler_path must be provided") # Ideal
+         # Fallback for now to avoid breaking train script before we edit it
+         scaler_path = os.path.join(ARTIFACTS_DIR, "scaler.joblib")
     
     if is_training:
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-        os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+        os.makedirs(os.path.dirname(scaler_path), exist_ok=True)
         joblib.dump(scaler, scaler_path)
     else:
         if os.path.exists(scaler_path):

@@ -1,83 +1,133 @@
 # Predictive Maintenance System
 
-A production-grade predictive maintenance system using Python, FastAPI, and Scikit-Learn.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688.svg)
+![React](https://img.shields.io/badge/React-18.0-61DAFB.svg)
+![Docker](https://img.shields.io/badge/docker-production-2496ED.svg)
 
-## Architecture
+> **Enterprise-grade anomaly detection and failure prediction for industrial IoT.**
 
-- **Backend**: FastAPI
-- **ML Engine**: Scikit-Learn (Random Forest, Isolation Forest)
-- **Data**: AI4I 2020 Predictive Maintenance Dataset
+---
 
-## Prerequisites
+## 📋 Executive Summary
+This system processes high-frequency sensor data (Temperature, RPM, Torque) to detect anomalies and predict equipment failure in real-time. By leveraging **unsupervised learning (Isolation Forest)** for novelty detection and **supervised learning (Random Forest)** for failure classification, it provides actionable insights to reduce unplanned downtime.
 
-- Python 3.8+
-- Virtual Environment
+---
 
-## Setup
+## 💼 Business Value
+Unplanned equipment downtime costs global manufacturers an estimated **$50 billion annually**. This solution addresses this critical inefficiency by:
+- **Reducing Unplanned Downtime**: Predicting failures *before* they occur allows for scheduled maintenance windows.
+- **Optimizing Asset Life**: Identifying abnormal operating conditions (drift) extends machinery lifespan.
+- **Operational Efficiency**: Real-time dashboards provide instant visibility into fleet health, replacing reactive fire-fighting with proactive monitoring.
 
-1. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   ```
+---
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   # OR
-   pip install fastapi uvicorn pandas scikit-learn joblib requests pydantic numpy
-   ```
+## 🏗 System Architecture
 
-## Training
+The system follows an **Event-Driven Microservices** architecture to ensure scalability and decoupling.
 
-Train the models using the module command:
+```mermaid
+graph TD
+    subgraph "Ingestion Layer"
+        S[Sensors] -->|JSON Stream| KB[Kafka Broker]
+        KB -->|Topic: sensor-data| C{Consumer Service}
+    end
+
+    subgraph "Processing Layer"
+        C -->|Raw Data| FE[Feature Engineering]
+        FE -->|Rolling Stats| SC[Standard Scaler]
+        SC -->|Normalized Vector| ML[Inference Engine]
+    end
+
+    subgraph "ML Components"
+        ML -->|Score| IF[Isolation Forest (Anomaly)]
+        ML -->|Prob| RF[Random Forest (Failure)]
+        ML -->|Check| DD[Drift Detector (KS-Test)]
+    end
+
+    subgraph "Serving Layer"
+        ML -->|Result| API[FastAPI Backend]
+        API -->|REST| UI[React Dashboard]
+        API -->|Metrics| PM[Prometheus / Grafana]
+    end
+```
+
+### Key Components
+- **Ingestion**: Apache Kafka handles high-throughput sensor streams.
+- **Backend**: FastAPI (Python 3.11) serves predictions and manages background inference tasks.
+- **ML Engine**: Scikit-learn models wrapped in a production service with model versioning and drift detection.
+- **Frontend**: React + Vite dashboard for real-time visualization of machine health.
+
+---
+
+## 🧠 Machine Learning Approach
+
+### 1. Feature Engineering
+Raw sensor streams are enriched to capture temporal dependencies:
+- **Rolling Statistics**: 10-minute moving averages and standard deviations to capture volatility.
+- **Deltas**: Rate-of-change features to detect rapid temperature spikes or torque fluctuations.
+
+### 2. Dual-Model Strategy
+- **Anomaly Detection (`IsolationForest`)**: 
+    - *Purpose*: Identify "unknown unknowns"—operating conditions that deviate from the norm but haven't been seen before.
+    - *Method*: Unsupervised learning on normal operating data.
+- **Failure Prediction (`RandomForestClassifier`)**: 
+    - *Purpose*: Predict known failure modes (Tool Wear, Overheating).
+    - *Method*: Supervised learning on historical failure logs.
+
+### 3. Operational Monitoring
+- **Data Drift**: Continuous Kolmogorov-Smirnov (KS) tests compare live traffic against the training baseline to alert on distribution shifts.
+- **Model Versioning**: Artifacts are versioned (`v1`, `v2`) to support A/B testing and atomic rollbacks.
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker Desktop or Podman
+- Python 3.11+ (for local dev)
+
+### run with Docker (Recommended)
+The entire stack (Kafka, Backend, Frontend) is containerized.
 
 ```bash
-python -m ml.train
+# Clone the repository
+git clone https://github.com/yourusername/predictive-maintenance.git
+cd predictive-maintenance
+
+# Start services
+docker compose -f infra/docker-compose.yml up --build
 ```
 
-Artifacts (models/scalers) will be saved in `ml/artifacts/`.
+Access the dashboard at **[http://localhost:5173](http://localhost:5173)**.
 
-## Running the API
+### Operational Metrics
+- **Prometheus Metrics**: `GET /metrics`
+- **Drift Report**: `GET /api/drift`
+- **Health Check**: `GET /`
 
-Start the server:
+---
 
-```bash
-uvicorn backend.main:app --reload
-```
+## 🛠 Tech Stack
 
-[Previous content]
+| Domain | Technologies |
+|--------|--------------|
+| **Compute** | Python 3.11, FastAPI, Uvicorn |
+| **Data & ML** | Scikit-Learn, Pandas, NumPy, SciPy |
+| **Streaming** | Apache Kafka, Zookeeper, AIOKafka |
+| **Frontend** | React, Vite, TailwindCSS, Recharts |
+| **DevOps** | Docker, GitHub Actions (CI), Render (CD) |
+| **Monitoring** | Prometheus Format, Structured Logging |
 
-## Docker Support
+---
 
-Build and run the containerized application:
+## ☁️ Deployment
 
-```bash
-docker compose -f infra/docker-compose.yml build
-docker compose -f infra/docker-compose.yml up
-```
+This project uses **Infrastructure as Code** (`render.yaml`) for deployment on Render.
 
-(Note: If using Podman, replace `docker` with `podman` and `docker compose` with `podman-compose` or `podman build/run` commands).
+1.  Push code to GitHub.
+2.  Connect repository to Render.
+3.  Deploy using the detected Blueprint.
 
-## Real-time Streaming (Kafka)
-
-1. Ensure the docker/podman stack is running (it now includes Kafka & Zookeeper).
-2. Start the sensor data producer:
-   ```bash
-   ./venv/bin/python streaming/producer.py
-   ```
-3. The system will ingest sensor data, run inference in real-time, and log predictions to the backend logs.
-
-
-**Endpoint**: `POST /api/predict`
-
-**Payload**:
-```json
-{
-  "Air temperature [K]": 300.1,
-  "Process temperature [K]": 310.5,
-  "Rotational speed [rpm]": 1600,
-  "Torque [Nm]": 40.5,
-  "Tool wear [min]": 120
-}
-```
+*Note: Streaming features require an external Kafka provider.*
