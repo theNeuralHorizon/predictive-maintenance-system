@@ -59,7 +59,14 @@ docker compose -f infra/docker-compose.yml up
 
 (Note: If using Podman, replace `docker` with `podman` and `docker compose` with `podman-compose` or `podman build/run` commands).
 
-## API Usage
+## Real-time Streaming (Kafka)
+
+1. Ensure the docker/podman stack is running (it now includes Kafka & Zookeeper).
+2. Start the sensor data producer:
+   ```bash
+   ./venv/bin/python streaming/producer.py
+   ```
+3. The system will ingest sensor data, run inference in real-time, and log predictions to the backend logs.
 
 
 **Endpoint**: `POST /api/predict`
