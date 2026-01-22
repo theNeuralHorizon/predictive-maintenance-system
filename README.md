@@ -46,7 +46,21 @@ Start the server:
 uvicorn backend.main:app --reload
 ```
 
+[Previous content]
+
+## Docker Support
+
+Build and run the containerized application:
+
+```bash
+docker compose -f infra/docker-compose.yml build
+docker compose -f infra/docker-compose.yml up
+```
+
+(Note: If using Podman, replace `docker` with `podman` and `docker compose` with `podman-compose` or `podman build/run` commands).
+
 ## API Usage
+
 
 **Endpoint**: `POST /api/predict`
 

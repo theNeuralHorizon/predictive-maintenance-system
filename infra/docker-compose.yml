@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Optional: Mount artifacts for persistence or dev updates
+      # - ../ml/artifacts:/app/ml/artifacts
+      pass
+    restart: unless-stopped
