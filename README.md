@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.128-009688.svg)
 ![React](https://img.shields.io/badge/React-18.0-61DAFB.svg)
 ![Docker](https://img.shields.io/badge/docker-production-2496ED.svg)
 
@@ -88,13 +88,13 @@ Raw sensor streams are enriched to capture temporal dependencies:
 - Docker Desktop or Podman
 - Python 3.11+ (for local dev)
 
-### run with Docker (Recommended)
+### Run with Docker (Recommended)
 The entire stack (Kafka, Backend, Frontend) is containerized.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/predictive-maintenance.git
-cd predictive-maintenance
+git clone https://github.com/theNeuralHorizon/predictive-maintenance-system.git
+cd predictive-maintenance-system
 
 # Start services
 docker compose -f infra/docker-compose.yml up --build
