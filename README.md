@@ -41,15 +41,15 @@ graph TD
     end
 
     subgraph "ML Components"
-        ML -->|Score| IF[Isolation Forest (Anomaly)]
-        ML -->|Prob| RF[Random Forest (Failure)]
-        ML -->|Check| DD[Drift Detector (KS-Test)]
+        ML -->|Score| IF["Isolation Forest (Anomaly)"]
+        ML -->|Prob| RF["Random Forest (Failure)"]
+        ML -->|Check| DD["Drift Detector (KS-Test)"]
     end
 
     subgraph "Serving Layer"
         ML -->|Result| API[FastAPI Backend]
         API -->|REST| UI[React Dashboard]
-        API -->|Metrics| PM[Prometheus / Grafana]
+        API -->|Metrics| PM["Prometheus / Grafana"]
     end
 ```
 
