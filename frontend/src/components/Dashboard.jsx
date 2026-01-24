@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+
 import { RadialBarChart, RadialBar, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 
 const SENSOR_DEFAULTS = {
@@ -30,11 +30,28 @@ const Dashboard = () => {
         setResult(null);
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-            const response = await axios.post(`${API_URL}/api/predict`, formData);
-            setResult(response.data);
+            const response = await fetch("/api/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                let errorMsg = `Server error: ${response.status}`;
+                try {
+                    const errData = await response.json();
+                    if (errData.detail) errorMsg = errData.detail;
+                    else if (errData.message) errorMsg = errData.message;
+                } catch (e) {
+                    // ignore json parse error
+                }
+                throw new Error(errorMsg);
+            }
+
+            const data = await response.json();
+            setResult(data);
         } catch (err) {
-            setError("Failed to fetch prediction. Ensure backend is running.");
+            setError(err.message || "Failed to fetch prediction. Ensure backend is running.");
             console.error(err);
         } finally {
             setLoading(false);
