@@ -1,26 +1,70 @@
 import React, { useState } from 'react';
+import { predictFailure } from '../services/api';
 
-import { RadialBarChart, RadialBar, Legend, Tooltip, ResponsiveContainer } from 'recharts';
+const InputField = ({ label, name, value, onChange, type = "number", step = "0.1" }) => (
+    <div className="mb-4">
+        <label htmlFor={name} className="block text-sm font-medium text-slate-700 mb-1">
+            {label}
+        </label>
+        <input
+            type={type}
+            id={name}
+            name={name}
+            value={value}
+            onChange={onChange}
+            step={step}
+            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
+            required
+        />
+    </div>
+);
 
-const SENSOR_DEFAULTS = {
-    "Air temperature [K]": 300.0,
-    "Process temperature [K]": 310.0,
-    "Rotational speed [rpm]": 1500,
-    "Torque [Nm]": 40.0,
-    "Tool wear [min]": 0
+const ResultCard = ({ result }) => {
+    if (!result) return null;
+
+    const isFailure = result.prediction === 1;
+    const statusColor = isFailure ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800';
+    const statusIcon = isFailure ? '⚠️' : '✅';
+
+    return (
+        <div className={`mt-6 p-6 rounded-lg border ${statusColor} animate-fade-in`}>
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+                {statusIcon} {isFailure ? 'Failure Predicted' : 'System Healthy'}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span className="block opacity-70">Anomaly Detected</span>
+                    <span className="font-semibold">{result.anomaly ? 'YES' : 'NO'}</span>
+                </div>
+                <div>
+                    <span className="block opacity-70">Failure Probability</span>
+                    <span className="font-semibold">{(result.failure_probability * 100).toFixed(1)}%</span>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const Dashboard = () => {
-    const [formData, setFormData] = useState(SENSOR_DEFAULTS);
+    const [formData, setFormData] = useState({
+        udi: 'M14860',
+        air_temperature: '298.1',
+        process_temperature: '308.6',
+        rotational_speed: '1551',
+        torque: '42.8',
+        tool_wear: '0'
+    });
+
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: parseFloat(e.target.value)
-        });
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        // Clear error/result on change to encourage re-submission
+        if (error) setError(null);
     };
 
     const handleSubmit = async (e) => {
@@ -30,150 +74,92 @@ const Dashboard = () => {
         setResult(null);
 
         try {
-            const response = await fetch("/api/predict", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
-            });
-
-            if (!response.ok) {
-                let errorMsg = `Server error: ${response.status}`;
-                try {
-                    const errData = await response.json();
-                    if (errData.detail) errorMsg = errData.detail;
-                    else if (errData.message) errorMsg = errData.message;
-                } catch (e) {
-                    // ignore json parse error
-                }
-                throw new Error(errorMsg);
-            }
-
-            const data = await response.json();
+            const data = await predictFailure(formData);
             setResult(data);
         } catch (err) {
-            setError(err.message || "Failed to fetch prediction. Ensure backend is running.");
-            console.error(err);
+            setError(err.message || "An unexpected error occurred");
         } finally {
             setLoading(false);
         }
     };
 
-    const gaugeData = result ? [
-        {
-            name: 'Safe',
-            value: 100,
-            fill: '#e5e7eb'
-        },
-        {
-            name: 'Failure Prob',
-            value: result.failure_probability * 100,
-            fill: result.failure_probability > 0.5 ? '#ef4444' : '#10b981'
-        }
-    ] : [];
-
     return (
-        <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-10">
-            <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-                    Predictive Maintenance Dashboard
-                </h1>
+        <div className="max-w-4xl mx-auto p-4 md:p-8">
+            {/* Header */}
+            <header className="mb-8 text-center md:text-left border-b border-slate-200 pb-6">
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Predictive Maintenance Dashboard</h1>
+                <p className="text-slate-500 mt-2">Real-time anomaly detection and equipment health monitoring system.</p>
+            </header>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Input Form */}
-                    <div className="bg-white p-6 rounded-xl shadow-md">
-                        <h2 className="text-xl font-semibold mb-6 text-gray-700">Sensor Readings</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            {Object.keys(SENSOR_DEFAULTS).map((key) => (
-                                <div key={key}>
-                                    <label className="block text-sm font-medium text-gray-600 mb-1">{key}</label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        name={key}
-                                        value={formData[key]}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                                        required
-                                    />
-                                </div>
-                            ))}
-                            <div className="pt-4">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className={`w-full py-3 px-4 rounded-lg text-white font-bold transition-colors ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                                        }`}
-                                >
-                                    {loading ? 'Analyzing...' : 'Predict Status'}
-                                </button>
+            <div className="grid md:grid-cols-3 gap-8">
+
+                {/* Input Panel */}
+                <div className="md:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-fit">
+                    <h2 className="text-xl font-semibold mb-5 text-slate-800">Sensor Readings</h2>
+                    <form onSubmit={handleSubmit}>
+                        <InputField label="UDI" name="udi" type="text" value={formData.udi} onChange={handleChange} />
+                        <InputField label="Air Temp [K]" name="air_temperature" value={formData.air_temperature} onChange={handleChange} />
+                        <InputField label="Process Temp [K]" name="process_temperature" value={formData.process_temperature} onChange={handleChange} />
+                        <InputField label="Rotational Speed [rpm]" name="rotational_speed" value={formData.rotational_speed} onChange={handleChange} step="1" />
+                        <InputField label="Torque [Nm]" name="torque" value={formData.torque} onChange={handleChange} />
+                        <InputField label="Tool Wear [min]" name="tool_wear" value={formData.tool_wear} onChange={handleChange} step="1" />
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full mt-4 py-2.5 px-4 rounded-lg text-white font-medium transition-all ${loading
+                                    ? 'bg-indigo-400 cursor-not-allowed'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg active:scale-95'
+                                }`}
+                        >
+                            {loading ? 'Analyzing...' : 'Predict Status'}
+                        </button>
+                    </form>
+                </div>
+
+                {/* Results Panel */}
+                <div className="md:col-span-2">
+                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 h-full">
+                        <h2 className="text-xl font-semibold mb-5 text-slate-800">Diagnostic Analysis</h2>
+
+                        {!result && !error && !loading && (
+                            <div className="h-64 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+                                <span className="text-4xl mb-3">🔍</span>
+                                <p>Enter sensor parameters to run inference.</p>
                             </div>
-                        </form>
-                        {error && <p className="mt-4 text-red-500 text-sm text-center">{error}</p>}
-                    </div>
-
-                    {/* Results Panel */}
-                    <div className="bg-white p-6 rounded-xl shadow-md flex flex-col items-center justify-center">
-                        <h2 className="text-xl font-semibold mb-6 text-gray-700 w-full text-left">Analysis Result</h2>
-
-                        {!result && !loading && (
-                            <p className="text-gray-400 text-center">Enter sensor data to see predictions.</p>
                         )}
 
+                        {loading && (
+                            <div className="h-64 flex flex-col items-center justify-center text-indigo-500">
+                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                                <p>Running random forest classification...</p>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-3">
+                                <span className="text-xl">⚠️</span>
+                                <div>
+                                    <p className="font-bold">Error</p>
+                                    <p>{error}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        <ResultCard result={result} />
+
                         {result && (
-                            <div className="w-full flex flex-col items-center animate-fade-in">
-                                {/* Status Badge */}
-                                <div className={`px-6 py-2 rounded-full text-lg font-bold mb-8 ${result.anomaly
-                                    ? 'bg-red-100 text-red-700 border border-red-200'
-                                    : 'bg-green-100 text-green-700 border border-green-200'
-                                    }`}>
-                                    {result.anomaly ? '⚠ ANOMALY DETECTED' : '✔ NORMAL OPERATION'}
+                            <div className="mt-8">
+                                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Model Insights</h3>
+                                <div className="bg-white p-4 rounded-lg border border-slate-200 text-sm text-slate-600">
+                                    <p>This prediction was generated by the <b>v1.0 Ensemble Model</b> (Isolation Forest + Random Forest).</p>
+                                    <p className="mt-2 text-xs opacity-75">Response Latency: &lt;100ms</p>
                                 </div>
-
-                                {/* Probability Gauge */}
-                                <div className="h-64 w-full relative">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <RadialBarChart
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius="60%"
-                                            outerRadius="100%"
-                                            barSize={20}
-                                            data={gaugeData}
-                                            startAngle={180}
-                                            endAngle={0}
-                                        >
-                                            <RadialBar
-                                                minAngle={15}
-                                                background
-                                                clockWise
-                                                dataKey="value"
-                                                cornerRadius={10}
-                                            />
-                                            <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="text-3xl font-bold fill-gray-700">
-                                                {(result.failure_probability * 100).toFixed(1)}%
-                                            </text>
-                                            <text x="50%" y="60%" textAnchor="middle" dominantBaseline="middle" className="text-sm fill-gray-500">
-                                                Failure Probability
-                                            </text>
-                                        </RadialBarChart>
-                                    </ResponsiveContainer>
-                                </div>
-
-                                <div className="mt-6 w-full grid grid-cols-2 gap-4 text-center">
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                        <span className="block text-xs text-gray-500 uppercase">Prediction Class</span>
-                                        <span className="text-lg font-mono font-semibold text-gray-800">{result.prediction}</span>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                        <span className="block text-xs text-gray-500 uppercase">Confidence</span>
-                                        <span className="text-lg font-mono font-semibold text-gray-800">High</span>
-                                    </div>
-                                </div>
-
                             </div>
                         )}
                     </div>
                 </div>
+
             </div>
         </div>
     );

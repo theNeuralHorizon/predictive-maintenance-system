@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.so
 .DS_Store
-ml/artifacts/*
+# ml/artifacts/*
+!ml/artifacts/v1/
 !ml/artifacts/.keep
 .env
