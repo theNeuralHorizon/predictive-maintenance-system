@@ -147,7 +147,7 @@ The `docker-compose.yml` orchestrates the following production services:
 
 ---
 
-## 🌟 Resume / Interview Highlights
+
 
 This project demonstrates proficiency in **Full-Stack ML Engineering** and **DevOps**:
 
