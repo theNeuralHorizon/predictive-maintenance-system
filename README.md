@@ -11,72 +11,79 @@
 
 ---
 
-## 📋 Executive Summary
-This full-stack machine learning application processes high-frequency sensor data (Temperature, RPM, Torque) to detect anomalies and predict equipment failure in real-time. By leveraging **unsupervised learning (Isolation Forest)** for novelty detection and **supervised learning (Random Forest)** for failure classification, it provides actionable insights to reduce unplanned downtime.
+## 🏗 Runtime Architecture
 
-The system is designed for **production environments**, featuring a decoupled architecture served from a unified entry point using Nginx as a reverse proxy.
+The system is currently deployed on a single **AWS EC2 (Ubuntu)** instance using **Docker Compose**. It operates as a consolidated monolith where Nginx acts as the unified reverse proxy for both the frontend and backend.
 
----
-
-## 💼 Business Value
-Unplanned equipment downtime costs global manufacturers an estimated **$50 billion annually**. This solution addresses this critical inefficiency by:
-- **Reducing Unplanned Downtime**: Predicting failures *before* they occur allows for scheduled maintenance windows.
-- **Optimizing Asset Life**: Identifying abnormal operating conditions (drift) extends machinery lifespan.
-- **Operational Efficiency**: Real-time dashboards provide instant visibility into fleet health, replacing reactive fire-fighting with proactive monitoring.
-
----
-
-## 🏗 System Architecture
-
-The system is deployed on a single **AWS EC2** instance using **Docker Compose**. It follows a microservices-based pattern where **Nginx** acts as the central reverse proxy and web server, routing traffic to the appropriate container.
-
+### Traffic Flow
 ```text
-[ Internet / User's Browser ]
-          |
-       (HTTP / 80)
-          |
-          v
-+-------------------------------------------------------+
-|  AWS EC2 Instance                                     |
-|                                                       |
-|  [ Nginx Container (Reverse Proxy) ]                  |
-|     |                     |                           |
-|     | (/)                 | (/api/*)                  |
-|     v                     v                           |
-|  [ Static Files ]      [ FastAPI Backend ]            |
-|  (React Build)            |                           |
-|                           +---> [ ML Models ]         |
-|                                 (sklearn / joblib)    |
-|                                                       |
-+-------------------------------------------------------+
+[ Browser ] 
+     |
+  (HTTP / Port 80)
+     |
+     v
++---------------- AWS EC2 Instance ----------------+
+| [ Nginx Container ]                              |
+|   |-- /         --> Serves /usr/share/nginx/html |
+|   |                 (React Static Files)         |
+|   |-- /api/*    --> Proxies to Backend:8000      |
+|                                                  |
+| [ Backend Container ]                            |
+|   |-- FastAPI (Uvicorn)                          |
+|   |-- ML Models (joblib)                         |
+|                                                  |
+| [ Kafka Container ]                              |
+|   |-- Ingests sensor events                      |
++--------------------------------------------------+
 ```
 
-### Key Architectural Decisions
-*   **Unified Entry Point**: Nginx serves both the React frontend (static assets) and proxies API requests, strictly adhering to **Single Origin Policy** and eliminating CORS complexity in production.
-*   **Containerized Isolation**: Each service (Nginx, Backend, Zookeeper, Kafka) runs in its own Docker container, ensuring environment consistency and easy scaling.
-*   **Data Locality**: Frontend assets and ML inference logic reside on the same host, minimizing latency.
+### Critical Services (Running)
+
+| Container | Image | Role | Status |
+| :--- | :--- | :--- | :--- |
+| `pm-nginx` | `nginx:alpine` | **Reverse Proxy & Web Server**. Routes traffic. Serves the React SPA (Vite build) and handles client-side routing (`try_files`). | ✅ Active |
+| `pm-backend` | `python:3.11-slim` | **API & Inference**. Hosts the FastAPI application. Loads Random Forest & Isolation Forest models into memory at startup. | ✅ Active |
+| `kafka` | `cp-kafka:7.4.0` | **Message Broker**. Decouples high-throughput sensor ingestion from processing. | ✅ Active |
+| `zookeeper` | `cp-zookeeper:7.4.0` | **Orchestration**. Manages Kafka cluster state. | ✅ Active |
 
 ---
 
-## 🚀 Live Deployment
+## � System State
 
-The system is live and accessible at:
+### Frontend (React + Vite)
+-   **Build**: Pre-built static assets (HTML, CSS, JS) generated via `npm run build`.
+-   **Serving**: Files are mounted into the Nginx container at `/usr/share/nginx/html`.
+-   **API Communication**: Uses relative paths (`/api/predict`) to communicate with the backend, eliminating CORS issues and hardcoded IP dependencies.
+-   **Routing**: Single Page Application (SPA) routing is handled by Nginx fallback to `index.html`.
 
-**[http://<YOUR_EC2_PUBLIC_IP>](http://<YOUR_EC2_PUBLIC_IP>)**
+### Backend (FastAPI + ML)
+-   **Server**: Running via `Uvicorn` worker processes.
+-   **ML Pipeline**:
+    -   **Loading**: Models (`scaler.joblib`, `failure_model.joblib`) are loaded once during container startup/initialization.
+    -   **Inference**: Real-time synchronous prediction on the `/api/predict` endpoint.
+    -   **Error Handling**: Catches and logs deserialization errors, surfacing them clearly in Docker logs.
 
-*(Replace with your actual IP or Domain)*
+### Infrastructure (Docker + AWS)
+-   **Orchestration**: `docker-compose.yml` defines the entire stack.
+-   **Networking**: Services communicate over a private Docker bridge network (`infra_default`). Only Nginx port `80` is exposed to the host/public.
+-   **Persistence**: Kafka volumes are configured but treating data as ephemeral for this demo deployment.
+
+### ⚠️ Inactive / Optional Components
+The repository contains code for features that are **not currently active** in this specific deployment:
+-   **Streaming Consumers**: Separate worker services for scalable data processing are defined but not primary for the sync API flow.
+-   **CI/CD**: GitHub Actions workflows exist in `.github` but are not handling the current deployment (manual Docker Compose).
+-   **HTTPS/SSL**: The server listens on Port 80 (HTTP). SSL termination is expected to be handled by an upstream Load Balancer (ELB) or requires Certbot configuration.
 
 ---
 
-## 🔌 API Usage
+## � API Reference
 
-The backend exposes a RESTful API for real-time inference.
-
-### Prediction Endpoint
 **POST** `/api/predict`
 
-**Request Body:**
+Used to submit sensor readings for immediate failure analysis.
+
 ```json
+/* Request */
 {
   "udi": "M14860",
   "air_temperature": 298.1,
@@ -85,10 +92,8 @@ The backend exposes a RESTful API for real-time inference.
   "torque": 42.8,
   "tool_wear": 0
 }
-```
 
-**Response:**
-```json
+/* Response */
 {
   "anomaly": false,
   "failure_probability": 0.02,
@@ -98,61 +103,14 @@ The backend exposes a RESTful API for real-time inference.
 
 ---
 
-## 🐳 Docker Services
+## 🌟 What This Project Demonstrates
 
-The `docker-compose.yml` orchestrates the following production services:
+For technical interviewers and reviewers, this project highlights:
 
-| Service | Container Name | Port (Internal) | Description |
-| :--- | :--- | :--- | :--- |
-| **Nginx** | `pm-nginx` | 80 | **[Public Entry]** Serves React SPA & Reverse Proxies API. |
-| **Backend** | `pm-backend` | 8000 | FastAPI application hosting ML models & business logic. |
-| **Kafka** | `kafka` | 9092 | Event streaming for sensor data ingestion. |
-| **Zookeeper** | `zookeeper` | 2181 | Coordination service for Kafka. |
+1.  **Production-Grade DevOps**: Moving beyond "localhost" by containerizing a full-stack application and solving real-world networking challenges (Reverse Proxy vs. CORS) on cloud infrastructure.
+2.  **Full-Stack ML Engineering**: Integrating a trained Scikit-Learn model into a high-performance FastAPI backend and visualizing results in a modern React dashboard.
+3.  **Resilient Architecture**: Designing a system where the frontend (Static) and backend (API) are loosely coupled but deployed together for simplicity and performance.
+4.  **Debugging & Observability**: Implementing robust logging to catch silent ML failures (e.g., model version mismatches) and verify system health in a headless environment.
 
 ---
-
-## 📂 Project Structure
-
-```text
-.
-├── backend/                # FastAPI Application
-│   ├── api/                # API Routes & Endpoints
-│   ├── services/           # ML Inference & Business Logic
-│   └── main.py             # Application Entry Point
-├── frontend/               # React Application (Vite)
-│   ├── src/                # Components & Hooks
-│   ├── dist/               # Production Build Artifacts (Served by Nginx)
-│   └── vite.config.js      # Build Configuration
-├── infra/                  # Infrastructure as Code
-│   ├── docker-compose.yml  # Container Orchestration
-│   ├── nginx.conf          # Reverse Proxy Configuration
-│   └── Dockerfile.backend  # Backend Image Definition
-├── ml/                     # Machine Learning Core
-│   ├── artifacts/          # Serialized Models (v1/)
-│   └── feature_engineering # Data Transformation Pipelines
-└── data/                   # Raw & Processed Datasets
-```
-
----
-
-## 🛠 Tech Stack
-
-| Domain | Technologies |
-| :--- | :--- |
-| **Frontend** | React 18, Vite, TailwindCSS, Recharts |
-| **Backend** | Python 3.11, FastAPI, Uvicorn |
-| **Machine Learning** | Scikit-Learn (RandomForest, IsolationForest), Pandas, Joblib |
-| **Infrastructure** | Docker, Docker Compose, Nginx, AWS EC2 |
-| **Streaming** | Apache Kafka, Zookeeper |
-
----
-
-
-
-This project demonstrates proficiency in **Full-Stack ML Engineering** and **DevOps**:
-
-*   **End-to-End deployment**: Architected and deployed a complete predictive maintenance system from raw data to a live, containerized web application on AWS.
-*   **Production-Ready Networking**: Configured Nginx as a reverse proxy to unify frontend and backend, handling static content delivery and API routing efficiently constantly.
-*   **ML Ops & Error Handling**: Implemented robust error handling for ML model loading and inference, ensuring system reliability and observability in production logs.
-*   **Container Orchestration**: Utilized Docker Compose to manage multi-container dependencies (Kafka, Zookeeper, API, Web Server) with persistent volumes and health checks.
-*   **Real-World Constraints**: Solved deployment challenges (no external build tools, strictly local assets) by effectively managing build artifacts and volume mounts.
+*Last Updated: 2026-01-24*
