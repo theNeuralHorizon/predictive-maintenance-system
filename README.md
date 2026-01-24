@@ -2,16 +2,19 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.128-009688.svg)
-![React](https://img.shields.io/badge/React-18.0-61DAFB.svg)
-![Docker](https://img.shields.io/badge/docker-production-2496ED.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-Production-009688.svg)
+![React](https://img.shields.io/badge/React-18-61DAFB.svg)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED.svg)
+![AWS](https://img.shields.io/badge/AWS-EC2-FF9900.svg)
 
-> **Enterprise-grade anomaly detection and failure prediction for industrial IoT.**
+> **Enterprise-grade anomaly detection and failure prediction system, containerized and deployed on AWS.**
 
 ---
 
 ## 📋 Executive Summary
-This system processes high-frequency sensor data (Temperature, RPM, Torque) to detect anomalies and predict equipment failure in real-time. By leveraging **unsupervised learning (Isolation Forest)** for novelty detection and **supervised learning (Random Forest)** for failure classification, it provides actionable insights to reduce unplanned downtime.
+This full-stack machine learning application processes high-frequency sensor data (Temperature, RPM, Torque) to detect anomalies and predict equipment failure in real-time. By leveraging **unsupervised learning (Isolation Forest)** for novelty detection and **supervised learning (Random Forest)** for failure classification, it provides actionable insights to reduce unplanned downtime.
+
+The system is designed for **production environments**, featuring a decoupled architecture served from a unified entry point using Nginx as a reverse proxy.
 
 ---
 
@@ -25,120 +28,131 @@ Unplanned equipment downtime costs global manufacturers an estimated **$50 billi
 
 ## 🏗 System Architecture
 
-The system operates on a **Hybrid Cloud** architecture, leveraging serverless frontend hosting and secure tunneling to expose on-premise inference resources without incurring cloud computing costs.
+The system is deployed on a single **AWS EC2** instance using **Docker Compose**. It follows a microservices-based pattern where **Nginx** acts as the central reverse proxy and web server, routing traffic to the appropriate container.
 
 ```text
-[ User Browser ]
-       |
-    (HTTPS)
-       v
-[ Vercel CDN ] <-----> [ React Frontend ]
-       |
-    (API Request)
-       v
-[ Cloudflare Edge ]
-       |
-    (Secure Tunnel / HTTP2)
-       v
-[ On-Premise / Local Server ]
-       |
-   [ cloudflared ]
-       |
-    (Internal Docker Network)
-       |
-[ Nginx Reverse Proxy ]
-       |
-       v
-[ FastAPI Backend ] ----> [ Scikit-Learn Models ]
-       |
-    (Async Event)
-       v
-[ Kafka Broker ]
+[ Internet / User's Browser ]
+          |
+       (HTTP / 80)
+          |
+          v
++-------------------------------------------------------+
+|  AWS EC2 Instance                                     |
+|                                                       |
+|  [ Nginx Container (Reverse Proxy) ]                  |
+|     |                     |                           |
+|     | (/)                 | (/api/*)                  |
+|     v                     v                           |
+|  [ Static Files ]      [ FastAPI Backend ]            |
+|  (React Build)            |                           |
+|                           +---> [ ML Models ]         |
+|                                 (sklearn / joblib)    |
+|                                                       |
++-------------------------------------------------------+
 ```
 
-### Data Flow Breakdown
-1.  **Frontend Serving**: The React SPA is hosted on **Vercel**, ensuring global low-latency delivery of static assets.
-2.  **Secure Ingress**: **Cloudflare Tunnel** creates an encrypted connection between the public internet and the local network. This eliminates the need for port forwarding, public IPs, or VPNs, significantly reducing the attack surface.
-3.  **Request Processing**:
-    *   **Nginx**: Acts as a reverse proxy to handle request buffering and header normalization.
-    *   **FastAPI**: Validates input data and triggers inference.
-    *   **Inference**: The `RandomForest` and `IsolationForest` models process the vector to return failure probabilities.
-4.  **Async Ingestion**: Data is simultaneously produced to **Kafka** for decoupled storage and future batch processing.
-
-### Engineering Decisions
-*   **Why Cloudflare Tunnel?**: Provides enterprise-grade security (DDoS protection, TLS termination) for a local development machine, mimicking a private VPC setup without the cost or complexity.
-*   **Why Docker?**: Ensures the ML environment (Python dependencies, system libraries) is identical across development and production, preventing "it works on my machine" issues.
-*   **Why Hybrid?**: Decoupling the lightweight frontend (Vercel) from the compute-heavy backend allows for independent scaling and cost optimization (Serverless UI + Owned Compute).
+### Key Architectural Decisions
+*   **Unified Entry Point**: Nginx serves both the React frontend (static assets) and proxies API requests, strictly adhering to **Single Origin Policy** and eliminating CORS complexity in production.
+*   **Containerized Isolation**: Each service (Nginx, Backend, Zookeeper, Kafka) runs in its own Docker container, ensuring environment consistency and easy scaling.
+*   **Data Locality**: Frontend assets and ML inference logic reside on the same host, minimizing latency.
 
 ---
 
-## 🧠 Machine Learning Approach
+## 🚀 Live Deployment
 
-### 1. Feature Engineering
-Raw sensor streams are enriched to capture temporal dependencies:
-- **Rolling Statistics**: 10-minute moving averages and standard deviations to capture volatility.
-- **Deltas**: Rate-of-change features to detect rapid temperature spikes or torque fluctuations.
+The system is live and accessible at:
 
-### 2. Dual-Model Strategy
-- **Anomaly Detection (`IsolationForest`)**: 
-    - *Purpose*: Identify "unknown unknowns"—operating conditions that deviate from the norm but haven't been seen before.
-    - *Method*: Unsupervised learning on normal operating data.
-- **Failure Prediction (`RandomForestClassifier`)**: 
-    - *Purpose*: Predict known failure modes (Tool Wear, Overheating).
-    - *Method*: Supervised learning on historical failure logs.
+**[http://<YOUR_EC2_PUBLIC_IP>](http://<YOUR_EC2_PUBLIC_IP>)**
 
-### 3. Operational Monitoring
-- **Data Drift**: Continuous Kolmogorov-Smirnov (KS) tests compare live traffic against the training baseline to alert on distribution shifts.
-- **Model Versioning**: Artifacts are versioned (`v1`, `v2`) to support A/B testing and atomic rollbacks.
+*(Replace with your actual IP or Domain)*
 
 ---
 
-## 🚀 Quick Start
+## 🔌 API Usage
 
-### Prerequisites
-- Docker Desktop or Podman
-- Python 3.11+ (for local dev)
+The backend exposes a RESTful API for real-time inference.
 
-### Run with Docker (Recommended)
-The entire stack (Kafka, Backend, Frontend) is containerized.
+### Prediction Endpoint
+**POST** `/api/predict`
 
-```bash
-# Clone the repository
-git clone https://github.com/theNeuralHorizon/predictive-maintenance-system.git
-cd predictive-maintenance-system
-
-# Start services
-docker compose -f infra/docker-compose.yml up --build
+**Request Body:**
+```json
+{
+  "udi": "M14860",
+  "air_temperature": 298.1,
+  "process_temperature": 308.6,
+  "rotational_speed": 1551,
+  "torque": 42.8,
+  "tool_wear": 0
+}
 ```
 
-Access the dashboard at **[http://localhost:5173](http://localhost:5173)**.
+**Response:**
+```json
+{
+  "anomaly": false,
+  "failure_probability": 0.02,
+  "prediction": 0
+}
+```
 
-### Operational Metrics
-- **Prometheus Metrics**: `GET /metrics`
-- **Drift Report**: `GET /api/drift`
-- **Health Check**: `GET /`
+---
+
+## 🐳 Docker Services
+
+The `docker-compose.yml` orchestrates the following production services:
+
+| Service | Container Name | Port (Internal) | Description |
+| :--- | :--- | :--- | :--- |
+| **Nginx** | `pm-nginx` | 80 | **[Public Entry]** Serves React SPA & Reverse Proxies API. |
+| **Backend** | `pm-backend` | 8000 | FastAPI application hosting ML models & business logic. |
+| **Kafka** | `kafka` | 9092 | Event streaming for sensor data ingestion. |
+| **Zookeeper** | `zookeeper` | 2181 | Coordination service for Kafka. |
+
+---
+
+## 📂 Project Structure
+
+```text
+.
+├── backend/                # FastAPI Application
+│   ├── api/                # API Routes & Endpoints
+│   ├── services/           # ML Inference & Business Logic
+│   └── main.py             # Application Entry Point
+├── frontend/               # React Application (Vite)
+│   ├── src/                # Components & Hooks
+│   ├── dist/               # Production Build Artifacts (Served by Nginx)
+│   └── vite.config.js      # Build Configuration
+├── infra/                  # Infrastructure as Code
+│   ├── docker-compose.yml  # Container Orchestration
+│   ├── nginx.conf          # Reverse Proxy Configuration
+│   └── Dockerfile.backend  # Backend Image Definition
+├── ml/                     # Machine Learning Core
+│   ├── artifacts/          # Serialized Models (v1/)
+│   └── feature_engineering # Data Transformation Pipelines
+└── data/                   # Raw & Processed Datasets
+```
 
 ---
 
 ## 🛠 Tech Stack
 
 | Domain | Technologies |
-|--------|--------------|
-| **Compute** | Python 3.11, FastAPI, Uvicorn |
-| **Data & ML** | Scikit-Learn, Pandas, NumPy, SciPy |
-| **Streaming** | Apache Kafka, Zookeeper, AIOKafka |
-| **Frontend** | React, Vite, TailwindCSS, Recharts |
-| **DevOps** | Docker, GitHub Actions (CI), Render (CD) |
-| **Monitoring** | Prometheus Format, Structured Logging |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, TailwindCSS, Recharts |
+| **Backend** | Python 3.11, FastAPI, Uvicorn |
+| **Machine Learning** | Scikit-Learn (RandomForest, IsolationForest), Pandas, Joblib |
+| **Infrastructure** | Docker, Docker Compose, Nginx, AWS EC2 |
+| **Streaming** | Apache Kafka, Zookeeper |
 
 ---
 
-## ☁️ Deployment
+## 🌟 Resume / Interview Highlights
 
-This project uses **Infrastructure as Code** (`render.yaml`) for deployment on Render.
+This project demonstrates proficiency in **Full-Stack ML Engineering** and **DevOps**:
 
-1.  Push code to GitHub.
-2.  Connect repository to Render.
-3.  Deploy using the detected Blueprint.
-
-*Note: Streaming features require an external Kafka provider.*
+*   **End-to-End deployment**: Architected and deployed a complete predictive maintenance system from raw data to a live, containerized web application on AWS.
+*   **Production-Ready Networking**: Configured Nginx as a reverse proxy to unify frontend and backend, handling static content delivery and API routing efficiently constantly.
+*   **ML Ops & Error Handling**: Implemented robust error handling for ML model loading and inference, ensuring system reliability and observability in production logs.
+*   **Container Orchestration**: Utilized Docker Compose to manage multi-container dependencies (Kafka, Zookeeper, API, Web Server) with persistent volumes and health checks.
+*   **Real-World Constraints**: Solved deployment challenges (no external build tools, strictly local assets) by effectively managing build artifacts and volume mounts.
