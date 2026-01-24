@@ -53,8 +53,8 @@ class MLService:
             
             logger.info("Models loaded successfully.")
         except Exception as e:
-            logger.error(f"Error loading models: {e}")
-            pass
+            logger.exception("Error loading models")
+            raise RuntimeError("Model loading failed") from e
 
     def predict(self, data: MachineData):
         if not self.scaler or not self.failure_model or not self.anomaly_model:
