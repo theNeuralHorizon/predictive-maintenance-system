@@ -108,8 +108,8 @@ const Dashboard = () => {
                             type="submit"
                             disabled={loading}
                             className={`w-full mt-4 py-2.5 px-4 rounded-lg text-white font-medium transition-all ${loading
-                                    ? 'bg-indigo-400 cursor-not-allowed'
-                                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg active:scale-95'
+                                ? 'bg-indigo-400 cursor-not-allowed'
+                                : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg active:scale-95'
                                 }`}
                         >
                             {loading ? 'Analyzing...' : 'Predict Status'}
