@@ -3,14 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from backend.api import routes
+from backend.routers import auth
 from backend.services.kafka_consumer import consume_loop
+from backend.auth.database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start Kafka consumer background task
+    # Startup: Initialize DB and Start Kafka consumer
+    init_db()
     task = asyncio.create_task(consume_loop())
     yield
-    # Shutdown: Cancel task (consumer handles its own cleanup via finally block)
+    # Shutdown
     task.cancel()
     try:
         await task
@@ -27,13 +30,14 @@ app = FastAPI(
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(routes.router, prefix="/api", tags=["Prediction"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
 @app.get("/")
 def health_check():
@@ -45,3 +49,4 @@ from backend.utils.metrics import metrics_collector
 @app.get("/metrics", response_class=PlainTextResponse)
 def metrics():
     return metrics_collector.generate_latest()
+

@@ -5,6 +5,7 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.backend
+    image: predictive-maintenance-backend:latest
     container_name: pm-backend
     restart: always
     environment:
