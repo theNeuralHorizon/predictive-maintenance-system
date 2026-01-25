@@ -4,21 +4,21 @@ from contextlib import asynccontextmanager
 import asyncio
 from backend.api import routes
 from backend.routers import auth
-from backend.services.kafka_consumer import consume_loop
+
 from backend.auth.database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB and Start Kafka consumer
+    # Startup: Initialize DB
     init_db()
-    task = asyncio.create_task(consume_loop())
+    # task = asyncio.create_task(consume_loop()) -> Removed Kafka
     yield
     # Shutdown
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    # task.cancel()
+    # try:
+    #     await task
+    # except asyncio.CancelledError:
+    #     pass
 
 app = FastAPI(
     title="Predictive Maintenance API",
