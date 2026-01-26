@@ -1,14 +1,19 @@
 services:
   - type: web
-    name: predictive-maintenance-api
-    runtime: docker
-    dockerfilePath: ./infra/Dockerfile.backend
-    context: .
-    envVars:
-      - key: MODEL_VERSION
-        value: v3
-      - key: KAFKA_BOOTSTRAP_SERVERS
-        value: "" # Leave empty or provide external Kafka URL
-    healthCheckPath: /
+    name: predictive-maintenance-backend
+    env: python
+    region: ohio
     plan: free
-    region: oregon
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: FRONTEND_URL
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
