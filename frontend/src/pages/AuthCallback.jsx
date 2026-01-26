@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const AuthCallback = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, user } = useAuth();
 
     useEffect(() => {
         const token = searchParams.get('token');
@@ -14,14 +14,17 @@ const AuthCallback = () => {
 
         if (token) {
             login(token);
-            navigate('/dashboard');
         } else if (error) {
             console.error("Auth Error:", error);
-            navigate('/'); // Or show error page
-        } else {
             navigate('/');
         }
-    }, [searchParams, navigate, login]);
+    }, [searchParams, login]);
+
+    useEffect(() => {
+        if (user) {
+            navigate('/dashboard');
+        }
+    }, [user, navigate]);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-[#060608] text-white">
