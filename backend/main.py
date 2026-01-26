@@ -1,12 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from backend.api import routes
+from backend.routers import auth
+from backend.auth.database import init_db
+from backend.auth.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    init_db()
     # task = asyncio.create_task(consume_loop()) -> Removed Kafka
     yield
     # Shutdown
@@ -23,6 +28,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Session Middleware required for Authlib
+app.add_middleware(SessionMiddleware, secret_key=settings.JWT_SECRET_KEY)
+
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +41,7 @@ app.add_middleware(
 )
 
 app.include_router(routes.router, prefix="/api", tags=["Prediction"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
 @app.get("/")
 def health_check():

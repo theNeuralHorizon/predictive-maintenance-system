@@ -113,4 +113,31 @@ For technical interviewers and reviewers, this project highlights:
 4.  **Debugging & Observability**: Implementing robust logging to catch silent ML failures (e.g., model version mismatches) and verify system health in a headless environment.
 
 ---
-*Last Updated: 2026-01-24*
+---
+
+##  Authentication (OAuth2)
+
+The system supports OAuth2 login via **Google** and **GitHub**.
+
+### Setup
+1.  Copy `.env.example` to `.env` in the root directory.
+2.  Add your OAuth credentials:
+    ```ini
+    GOOGLE_CLIENT_ID=...
+    GOOGLE_CLIENT_SECRET=...
+    GITHUB_CLIENT_ID=...
+    GITHUB_CLIENT_SECRET=...
+    JWT_SECRET_KEY=your_secret_key
+    ```
+3.  **Redirect URIs** to configure in your provider:
+    -   **Google/GitHub**: `http://localhost:8000/api/auth/callback/google` (or `github`)
+
+### How it Works
+1.  Frontend redirects user to `/api/auth/login/{provider}`.
+2.  Backend handles the handshake and code exchange.
+3.  Backend creates/updates user in `users.db` (SQLite).
+4.  Backend issues a JWT and redirects to Frontend `/auth/callback?token=...`.
+5.  Frontend stores token and attaches it to API requests (`Authorization: Bearer ...`).
+
+---
+*Last Updated: 2026-01-26*

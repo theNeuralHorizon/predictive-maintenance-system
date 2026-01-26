@@ -1,19 +1,34 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from backend.schemas.request import MachineData
 from backend.schemas.response import PredictionResponse
 from backend.services.ml_service import ml_service
 from backend.utils.logger import setup_logger
+from backend.auth.utils import verify_token
+from fastapi.security import OAuth2PasswordBearer
+from typing import Annotated
 
 logger = setup_logger(__name__)
 router = APIRouter()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from starlette.status import HTTP_202_ACCEPTED
 
 @router.post("/predict", response_model=PredictionResponse)
-def predict(data: MachineData):
+def predict(data: MachineData, user: Annotated[dict, Depends(get_current_user)]):
     # Changed to def (sync) to run in threadpool, avoiding event loop blocking by CPU-bound ML
-    logger.info("Received prediction request", extra={"udi": data.udi})
+    logger.info("Received prediction request", extra={"udi": data.udi, "user": user['sub']})
     try:
         result = ml_service.predict(data)
         return PredictionResponse(**result)

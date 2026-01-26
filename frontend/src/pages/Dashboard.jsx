@@ -26,8 +26,13 @@ import {
     BrainCircuit,
     Loader2,
     Sparkles,
-    FileText
+    FileText,
+    LogOut,
+    User,
+    Github,
+    Chrome
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import {
     LineChart,
     Line,
@@ -57,6 +62,8 @@ const Dashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isInfoOpen, setIsInfoOpen] = useState(false);
+    const [isLoginOpen, setIsLoginOpen] = useState(false);
+    const { user, logout } = useAuth();
     const [selectedMachine, setSelectedMachine] = useState("M14860");
     const [toasts, setToasts] = useState([]);
     const [lastRepairTimestamp, setLastRepairTimestamp] = useState(0);
@@ -212,6 +219,15 @@ const Dashboard = () => {
     // --- GEMINI INSIGHT ENGINE (MOCKED) ---
     const generateAiInsight = async (force = false) => {
         if (!currentJson || isInsightLoading) return;
+
+        // Require Auth
+        if (!user) {
+            if (force) {
+                addToast("Authentication required for AI Insights", "error");
+                setIsLoginOpen(true);
+            }
+            return;
+        }
 
         // Auto-trigger logic: Only if status changed or forced
         if (!force && currentStatus.label === lastAnalyzedStatus.current) return;
@@ -427,6 +443,31 @@ const Dashboard = () => {
                 </div>
             )}
 
+            {/* --- LOGIN MODAL --- */}
+            {isLoginOpen && !user && (
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-[#0d0d0f] border border-white/10 w-full max-w-md rounded-3xl shadow-2xl p-8 animate-in fade-in zoom-in duration-200 relative">
+                        <button onClick={() => setIsLoginOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-slate-400" /></button>
+                        <div className="text-center mb-8">
+                            <div className="w-16 h-16 bg-white mx-auto flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] mb-4">
+                                <Activity className="text-black w-8 h-8 stroke-[2.5px]" />
+                            </div>
+                            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Authenticate</h2>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2">Access Secure Control Plane</p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <a href="http://localhost:8000/api/auth/login/google" className="w-full py-4 bg-white text-black hover:bg-slate-200 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                                <Chrome className="w-5 h-5" /> Sign in with Google
+                            </a>
+                            <a href="http://localhost:8000/api/auth/login/github" className="w-full py-4 bg-[#24292e] text-white hover:bg-[#2f363d] border border-white/10 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                                <Github className="w-5 h-5" /> Sign in with GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* --- HEADER --- */}
             <header className="border-b border-white/5 bg-[#0a0a0c]/90 backdrop-blur-xl sticky top-0 z-50">
                 <div className="max-w-[1600px] mx-auto px-8 py-5 flex items-center justify-between">
@@ -464,6 +505,24 @@ const Dashboard = () => {
                         <button onClick={() => setIsSettingsOpen(true)} className={`p-2.5 rounded-xl border transition-all ${isSettingsOpen ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-400'}`}>
                             <Settings className="w-5 h-5" />
                         </button>
+                        <div className="flex items-center gap-2 pl-4 border-l border-white/10">
+                            {user && (
+                                <div className="flex items-center gap-3">
+                                    <div className="text-right hidden sm:block">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <p className="text-xs font-bold text-white">{user.name}</p>
+                                            {user.role === 'admin' && (
+                                                <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white text-[8px] font-black uppercase tracking-wider">ADMIN</span>
+                                            )}
+                                        </div>
+                                        <p className="text-[9px] text-slate-500 uppercase font-black tracking-wider">{user.provider}</p>
+                                    </div>
+                                    <button onClick={logout} className="p-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 border border-white/10 text-slate-400 transition-all" title="Logout">
+                                        <LogOut className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </header>
