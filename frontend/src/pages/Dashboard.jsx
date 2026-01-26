@@ -457,9 +457,6 @@ const Dashboard = () => {
                         </div>
 
                         <div className="space-y-3">
-                            <a href="http://localhost:8000/api/auth/login/google" className="w-full py-4 bg-white text-black hover:bg-slate-200 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
-                                <Chrome className="w-5 h-5" /> Sign in with Google
-                            </a>
                             <a href="http://localhost:8000/api/auth/login/github" className="w-full py-4 bg-[#24292e] text-white hover:bg-[#2f363d] border border-white/10 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
                                 <Github className="w-5 h-5" /> Sign in with GitHub
                             </a>

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Activity, ShieldCheck, Zap, Server, Globe, Lock, Github, Chrome } from 'lucide-react';
+import { Activity, ShieldCheck, Zap, Server, Globe, Lock, Github } from 'lucide-react';
 
 const Login = () => {
     return (
@@ -29,14 +29,6 @@ const Login = () => {
                     </div>
 
                     <div className="px-8 py-2 space-y-4">
-                        <a
-                            href="http://localhost:8000/api/auth/login/google"
-                            className="group relative w-full py-4 bg-white hover:bg-slate-100 text-black rounded-xl transition-all flex items-center justify-center gap-3 overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                            <Chrome className="w-5 h-5" />
-                            <span className="text-sm font-black uppercase tracking-widest">Sign in with Google</span>
-                        </a>
 
                         <a
                             href="http://localhost:8000/api/auth/login/github"

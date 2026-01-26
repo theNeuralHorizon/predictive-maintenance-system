@@ -9,15 +9,6 @@ from backend.auth.utils import create_access_token
 router = APIRouter()
 oauth = OAuth()
 
-# Google Configuration
-oauth.register(
-    name='google',
-    client_id=settings.GOOGLE_CLIENT_ID,
-    client_secret=settings.GOOGLE_CLIENT_SECRET,
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
-)
-
 # GitHub Configuration
 oauth.register(
     name='github',
@@ -33,6 +24,9 @@ oauth.register(
 
 @router.get("/login/{provider}")
 async def login(request: Request, provider: str):
+    if provider != 'github':
+        raise HTTPException(status_code=400, detail="Only GitHub login is supported")
+        
     redirect_uri = request.url_for('auth_callback', provider=provider)
     client = oauth.create_client(provider)
     if not client:
@@ -41,6 +35,9 @@ async def login(request: Request, provider: str):
 
 @router.get("/callback/{provider}")
 async def auth_callback(request: Request, provider: str):
+    if provider != 'github':
+        raise HTTPException(status_code=400, detail="Only GitHub login is supported")
+
     client = oauth.create_client(provider)
     if not client:
         raise HTTPException(status_code=404, detail="Provider not found")
@@ -48,17 +45,13 @@ async def auth_callback(request: Request, provider: str):
     try:
         token = await client.authorize_access_token(request)
     except OAuthError as error:
-         return RedirectResponse(url=f"/#error={error.error}")
+         # Redirect to frontend with error
+         frontend_url = "http://localhost:5173/auth/callback"
+         return RedirectResponse(url=f"{frontend_url}?error={error.error}")
          
     user_info = {}
-    if provider == 'google':
-        user_info = token.get('userinfo')
-        if not user_info:
-             # Fallback if userinfo not in token (depends on authlib version/impl, sometimes needs fetch)
-             user_info = await client.userinfo(token=token)
-        user_info['provider'] = 'google'
         
-    elif provider == 'github':
+    if provider == 'github':
         resp = await client.get('user', token=token)
         profile = resp.json()
         

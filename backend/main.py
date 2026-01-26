@@ -29,7 +29,8 @@ app = FastAPI(
 )
 
 # Session Middleware required for Authlib
-app.add_middleware(SessionMiddleware, secret_key=settings.JWT_SECRET_KEY)
+# https_only=False is critical for localhost development to allow cookies over HTTP
+app.add_middleware(SessionMiddleware, secret_key=settings.JWT_SECRET_KEY, https_only=False, same_site="lax")
 
 # Enable CORS
 app.add_middleware(
