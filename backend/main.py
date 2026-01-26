@@ -3,14 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from backend.api import routes
-from backend.routers import auth
-
-from backend.auth.database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB
-    init_db()
+    # Startup
     # task = asyncio.create_task(consume_loop()) -> Removed Kafka
     yield
     # Shutdown
@@ -37,7 +33,6 @@ app.add_middleware(
 )
 
 app.include_router(routes.router, prefix="/api", tags=["Prediction"])
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
 @app.get("/")
 def health_check():
