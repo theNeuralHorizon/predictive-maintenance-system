@@ -27,7 +27,13 @@ async def login(request: Request, provider: str):
     if provider != 'github':
         raise HTTPException(status_code=400, detail="Only GitHub login is supported")
         
-    redirect_uri = request.url_for('auth_callback', provider=provider)
+    if settings.BACKEND_URL:
+        # Explicit override for production (avoids proxy/http/https matching issues)
+        redirect_uri = f"{settings.BACKEND_URL}/api/auth/callback/{provider}"
+    else:
+        # Dynamic fallback for local development
+        redirect_uri = request.url_for('auth_callback', provider=provider)
+        
     client = oauth.create_client(provider)
     if not client:
         raise HTTPException(status_code=404, detail="Provider not found")
