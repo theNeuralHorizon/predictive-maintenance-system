@@ -31,7 +31,7 @@ const Login = () => {
                     <div className="px-8 py-2 space-y-4">
 
                         <a
-                            href="http://localhost:8000/api/auth/login/github"
+                            href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}/auth/login/github`}
                             className="group w-full py-4 bg-[#24292e] hover:bg-[#2f363d] text-white border border-white/10 rounded-xl transition-all flex items-center justify-center gap-3"
                         >
                             <Github className="w-5 h-5" />
