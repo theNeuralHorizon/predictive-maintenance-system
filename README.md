@@ -4,124 +4,120 @@
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Production-009688.svg)
 ![React](https://img.shields.io/badge/React-18-61DAFB.svg)
-![Vercel](https://img.shields.io/badge/Deployed-Vercel-000000.svg)
-![Render](https://img.shields.io/badge/Deployed-Render-46E3B7.svg)
 
-> **Enterprise-grade anomaly detection and failure prediction system, featuring a decoupled microservices architecture with GitHub OAuth security.**
+## Executive Summary
 
----
+The Predictive Maintenance System is an enterprise-grade anomaly detection and failure prediction platform. It leverages machine learning to analyze real-time sensor telemetry, identifying potential equipment failures before they occur. The system is architected as a decoupled full-stack application, ensuring scalability, security through OAuth2 authentication, and seamless deployment across modern cloud infrastructure.
 
-## 🚀 Live Demo
+## System Architecture
 
--   **Frontend (Dashboard)**: [https://predictive-maintenance-system-two.vercel.app](https://predictive-maintenance-system-two.vercel.app)
--   **Backend (API)**: [https://predictive-maintenance-system-t4n7.onrender.com](https://predictive-maintenance-system-t4n7.onrender.com)
+The application adopts a decoupled microservices pattern, separating the user interface from the logic and inference layers. This design allows for independent scaling and maintenance of each component.
 
----
+### Components
 
-## 🏗 Architecture
+1.  **Frontend (Presentation Layer)**
+    *   **Framework**: React 18 with Vite.
+    *   **Styling**: TailwindCSS for responsive, component-driven design.
+    *   **Hosting**: Deployed on Vercel's global edge network.
+    *   **Responsibility**: manages user session state, visualizes sensor data, and communicates with the backend via RESTful APIs.
 
-The system operates as a decoupled web application:
--   **Frontend**: React + Vite + TailwindCSS (Hosted on **Vercel**).
--   **Backend**: FastAPI + Scikit-Learn + Authlib (Hosted on **Render**).
--   **Auth**: OAuth2 via **GitHub**.
--   **ML Pipeline**: Real-time inference using Random Forest and Isolation Forest models.
+2.  **Backend (Logic & Inference Layer)**
+    *   **Framework**: FastAPI (Python).
+    *   **Hosting**: Deployed on Render as a web service.
+    *   **Machine Learning**: Scikit-Learn (Random Forest & Isolation Forest).
+    *   **Responsibility**: Handles OAuth2 handshakes, verifies JWT tokens, validates input schemas (Pydantic), and executes model inference.
 
-### Traffic Flow
-```text
-[ User / Phone ]
-      |
-      v
-[ Vercel CDN ] --> Serves React App (Static)
-      |
-      v
-[ Browser ] <-- "Sign in with GitHub"
-      |
-      v
-[ GitHub ] --> Auth Callback --> [ Render Backend ]
-                                      |
-                                  [ Database / JWT ]
-      |
-      v
-[ Render Backend ] <-- API Requests (`/predict`)
-      |
-      +-- ML Models (Memory)
-```
+3.  **Authentication & Security**
+    *   **Protocol**: OAuth2 Authorization Code flow.
+    *   **Provider**: GitHub.
+    *   **Mechanism**: Stateless JWT (JSON Web Tokens) for API authorization. HttpOnly cookies are used during the handshake process to prevent CSRF attacks.
+
+## Live Deployment
+
+The system is currently live and accessible at the following endpoints:
+
+*   **Frontend Dashboard**: https://predictive-maintenance-system-two.vercel.app
+*   **Backend API**: https://predictive-maintenance-system-t4n7.onrender.com
 
 ---
 
-## ⚙️ Configuration & Environment
+## Configuration
 
-To run this system, the following Environment Variables are required.
+The application requires specific environment variables to function in both development and production environments.
 
-### 1. Backend (Render / Local)
-| Variable | Description | Example |
-| :--- | :--- | :--- |
-| `FRONTEND_URL` | URL of the frontend (for redirects) | `https://your-app.vercel.app` |
-| `BACKEND_URL` | (Optional) Force backend URL | `https://your-api.onrender.com` |
-| `GITHUB_CLIENT_ID` | GitHub OAuth App ID | `Iv1...` |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth Secret | `a1b2...` |
-| `JWT_SECRET_KEY` | Secret for signing tokens | `supersecret` |
+### Backend Configuration
+These variables must be set in the Render environment or your local `.env` file.
 
-### 2. Frontend (Vercel / Local)
-| Variable | Description | Example |
-| :--- | :--- | :--- |
-| `VITE_API_BASE_URL` | URL of the Backend API | `https://your-api.onrender.com/api` |
+| Variable | Description |
+| :--- | :--- |
+| `FRONTEND_URL` | The URL of the frontend application. Used for OAuth redirects. |
+| `BACKEND_URL` | (Optional) Explicit URL of the backend. Useful for overriding proxy detection. |
+| `GITHUB_CLIENT_ID` | The Client ID provided by your GitHub OAuth App. |
+| `GITHUB_CLIENT_SECRET` | The Client Secret provided by your GitHub OAuth App. |
+| `JWT_SECRET_KEY` | A strong, random string used to sign and verify JSON Web Tokens. |
+
+### Frontend Configuration
+These variables must be set in the Vercel project settings or local `.env` file.
+
+| Variable | Description |
+| :--- | :--- |
+| `VITE_API_BASE_URL` | The absolute URL of the backend API (e.g., `https://.../api`). |
 
 ---
 
-## 🛠 Local Development via Docker
+## Installation and Local Development
 
-You can run the entire stack locally using Docker Compose, or run services individually.
+For local development, it is recommended to run the services using the provided Docker configuration or Python virtual environments.
 
 ### Prerequisites
--   Docker & Docker Compose
--   GitHub OAuth App (callback: `http://localhost:8000/api/auth/callback/github`)
+*   Python 3.11+
+*   Node.js 18+
+*   Docker & Docker Compose (Optional)
 
-### Quick Start
-1.  **Clone the Repo**:
+### Running with Docker (Recommended)
+
+1.  **Clone the repository**
     ```bash
     git clone https://github.com/your-username/predictive-maintenance-system.git
     cd predictive-maintenance-system
     ```
 
-2.  **Setup Env**:
-    Create `.env` in the root:
-    ```ini
-    GITHUB_CLIENT_ID=...
-    GITHUB_CLIENT_SECRET=...
-    JWT_SECRET_KEY=dev_secret
-    FRONTEND_URL=http://localhost:5173
-    ```
+2.  **Configure Environment**
+    Create a `.env` file in the root directory containing the variables listed in the configuration section above.
 
-3.  **Run Backend**:
+3.  **Start Services**
     ```bash
-    python -m uvicorn backend.main:app --reload
+    docker-compose up --build
     ```
+    The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:8000`.
 
-4.  **Run Frontend**:
-    ```bash
-    cd frontend
-    npm install
-    npm run dev
-    ```
+### Manual Installation
 
----
+**Backend:**
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn backend.main:app --reload
+```
 
-## 🧠 ML Model Details
-
--   **Input**: Air Temperature, Process Temperature, RPM, Torque, Tool Wear.
--   **Anomaly Detection**: `IsolationForest` identifies outliers/drift.
--   **Failure Prediction**: `RandomForestClassifier` predicts machine failure (binary).
--   **Training Data**: AI4I 2020 Predictive Maintenance Dataset.
-
----
-
-## 🔒 Security
-
--   **Authentication**: No passwords stored. Pure OAuth2 flow.
--   **Sessions**: HTTP-only Cookies (Local) / Bearer Tokens (API).
--   **Protection**: `ProxyHeadersMiddleware` ensures valid HTTPS handshakes behind Load Balancers (like Render/Vercel).
--   **CORS**: Strictly typed to allow only the Vercel Frontend.
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
-*Maintained by SteelPulse Team.*
+
+## Machine Learning Pipeline
+
+The system utilizes a pre-trained pipeline for predictive analysis:
+
+*   **Data Preprocessing**: Input telemetry (Air Temperature, Process Temperature, Torque, RPM, Tool Wear) is standardized using a `StandardScaler`.
+*   **Feature Engineering**: Rolling averages and deltas are calculated to capture temporal patterns in the sensor data.
+*   **Model 1: Anomaly Detection**: An `IsolationForest` model identifies outliers in the data stream that deviate from normal operating conditions.
+*   **Model 2: Failure Classification**: A `RandomForestClassifier` predicts the probability of machine failure based on the processed features.
+
+## License
+
+This project is licensed under the MIT License.
