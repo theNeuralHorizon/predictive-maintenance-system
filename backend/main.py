@@ -32,6 +32,10 @@ app = FastAPI(
 # https_only=False is critical for localhost development to allow cookies over HTTP
 app.add_middleware(SessionMiddleware, secret_key=settings.JWT_SECRET_KEY, https_only=False, same_site="lax")
 
+# Trust Proxy Headers (Crucial for Render/Vercel deployments to correctly detect https)
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
