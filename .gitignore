@@ -7,3 +7,10 @@ __pycache__/
 !ml/artifacts/v1/
 !ml/artifacts/.keep
 .env
+
+# User requested ignores
+*.md
+!README.md
+*.sh
+users.db
+backend/users.db
