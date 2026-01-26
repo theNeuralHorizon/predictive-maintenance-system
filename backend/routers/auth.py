@@ -46,7 +46,7 @@ async def auth_callback(request: Request, provider: str):
         token = await client.authorize_access_token(request)
     except OAuthError as error:
          # Redirect to frontend with error
-         frontend_url = "http://localhost:5173/auth/callback"
+         frontend_url = f"{settings.FRONTEND_URL}/auth/callback"
          return RedirectResponse(url=f"{frontend_url}?error={error.error}")
          
     user_info = {}
@@ -85,10 +85,5 @@ async def auth_callback(request: Request, provider: str):
     })
     
     # Redirect to Frontend with Token
-    # Using a query param is simple; for more security, could render a page that posts it.
-    # Given the request was for a clean implementation, passing via URL fragment is common for SPA oidc-client style, 
-    # but here query param is easiest for a quick implementation. 
-    # Let's use Query Param on a dedicated callback route.
-    
-    frontend_url = "http://localhost:5173/auth/callback" # Or from env
+    frontend_url = f"{settings.FRONTEND_URL}/auth/callback" 
     return RedirectResponse(url=f"{frontend_url}?token={access_token}")
