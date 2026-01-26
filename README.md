@@ -4,140 +4,124 @@
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Production-009688.svg)
 ![React](https://img.shields.io/badge/React-18-61DAFB.svg)
-![Docker](https://img.shields.io/badge/docker-compose-2496ED.svg)
-![AWS](https://img.shields.io/badge/AWS-EC2-FF9900.svg)
+![Vercel](https://img.shields.io/badge/Deployed-Vercel-000000.svg)
+![Render](https://img.shields.io/badge/Deployed-Render-46E3B7.svg)
 
-> **Enterprise-grade anomaly detection and failure prediction system, containerized and deployed on AWS.**
+> **Enterprise-grade anomaly detection and failure prediction system, featuring a decoupled microservices architecture with GitHub OAuth security.**
 
 ---
 
-## 🏗 Runtime Architecture
+## 🚀 Live Demo
 
-The system is currently deployed on a single **AWS EC2 (Ubuntu)** instance using **Docker Compose**. It operates as a consolidated monolith where Nginx acts as the unified reverse proxy for both the frontend and backend.
+-   **Frontend (Dashboard)**: [https://predictive-maintenance-system-two.vercel.app](https://predictive-maintenance-system-two.vercel.app)
+-   **Backend (API)**: [https://predictive-maintenance-system-t4n7.onrender.com](https://predictive-maintenance-system-t4n7.onrender.com)
+
+---
+
+## 🏗 Architecture
+
+The system operates as a decoupled web application:
+-   **Frontend**: React + Vite + TailwindCSS (Hosted on **Vercel**).
+-   **Backend**: FastAPI + Scikit-Learn + Authlib (Hosted on **Render**).
+-   **Auth**: OAuth2 via **GitHub**.
+-   **ML Pipeline**: Real-time inference using Random Forest and Isolation Forest models.
 
 ### Traffic Flow
 ```text
-[ Browser ] 
-     |
-  (HTTP / Port 80)
-     |
-     v
-+---------------- AWS EC2 Instance ----------------+
-| [ Nginx Container ]                              |
-|   |-- /         --> Serves /usr/share/nginx/html |
-|   |                 (React Static Files)         |
-|   |-- /api/*    --> Proxies to Backend:8000      |
-|                                                  |
-| [ Backend Container ]                            |
-|   |-- FastAPI (Uvicorn)                          |
-|   |-- ML Models (joblib)                         |
-|                                                  |
-| [ Kafka Container ]                              |
-|   |-- Ingests sensor events                      |
-+--------------------------------------------------+
-```
-
-### Critical Services (Running)
-
-| Container | Image | Role | Status |
-| :--- | :--- | :--- | :--- |
-| `pm-nginx` | `nginx:alpine` | **Reverse Proxy & Web Server**. Routes traffic. Serves the React SPA (Vite build) and handles client-side routing (`try_files`). | ✅ Active |
-| `pm-backend` | `python:3.11-slim` | **API & Inference**. Hosts the FastAPI application. Loads Random Forest & Isolation Forest models into memory at startup. | ✅ Active |
-| `kafka` | `cp-kafka:7.4.0` | **Message Broker**. Decouples high-throughput sensor ingestion from processing. | ✅ Active |
-| `zookeeper` | `cp-zookeeper:7.4.0` | **Orchestration**. Manages Kafka cluster state. | ✅ Active |
-
----
-
-## � System State
-
-### Frontend (React + Vite)
--   **Build**: Pre-built static assets (HTML, CSS, JS) generated via `npm run build`.
--   **Serving**: Files are mounted into the Nginx container at `/usr/share/nginx/html`.
--   **API Communication**: Uses relative paths (`/api/predict`) to communicate with the backend, eliminating CORS issues and hardcoded IP dependencies.
--   **Routing**: Single Page Application (SPA) routing is handled by Nginx fallback to `index.html`.
-
-### Backend (FastAPI + ML)
--   **Server**: Running via `Uvicorn` worker processes.
--   **ML Pipeline**:
-    -   **Loading**: Models (`scaler.joblib`, `failure_model.joblib`) are loaded once during container startup/initialization.
-    -   **Inference**: Real-time synchronous prediction on the `/api/predict` endpoint.
-    -   **Error Handling**: Catches and logs deserialization errors, surfacing them clearly in Docker logs.
-
-### Infrastructure (Docker + AWS)
--   **Orchestration**: `docker-compose.yml` defines the entire stack.
--   **Networking**: Services communicate over a private Docker bridge network (`infra_default`). Only Nginx port `80` is exposed to the host/public.
--   **Persistence**: Kafka volumes are configured but treating data as ephemeral for this demo deployment.
-
-### ⚠️ Inactive / Optional Components
-The repository contains code for features that are **not currently active** in this specific deployment:
--   **Streaming Consumers**: Separate worker services for scalable data processing are defined but not primary for the sync API flow.
--   **CI/CD**: GitHub Actions workflows exist in `.github` but are not handling the current deployment (manual Docker Compose).
--   **HTTPS/SSL**: The server listens on Port 80 (HTTP). SSL termination is expected to be handled by an upstream Load Balancer (ELB) or requires Certbot configuration.
-
----
-
-## � API Reference
-
-**POST** `/api/predict`
-
-Used to submit sensor readings for immediate failure analysis.
-
-```json
-/* Request */
-{
-  "udi": "M14860",
-  "air_temperature": 298.1,
-  "process_temperature": 308.6,
-  "rotational_speed": 1551,
-  "torque": 42.8,
-  "tool_wear": 0
-}
-
-/* Response */
-{
-  "anomaly": false,
-  "failure_probability": 0.02,
-  "prediction": 0
-}
+[ User / Phone ]
+      |
+      v
+[ Vercel CDN ] --> Serves React App (Static)
+      |
+      v
+[ Browser ] <-- "Sign in with GitHub"
+      |
+      v
+[ GitHub ] --> Auth Callback --> [ Render Backend ]
+                                      |
+                                  [ Database / JWT ]
+      |
+      v
+[ Render Backend ] <-- API Requests (`/predict`)
+      |
+      +-- ML Models (Memory)
 ```
 
 ---
 
-## 🌟 What This Project Demonstrates
+## ⚙️ Configuration & Environment
 
-For technical interviewers and reviewers, this project highlights:
+To run this system, the following Environment Variables are required.
 
-1.  **Production-Grade DevOps**: Moving beyond "localhost" by containerizing a full-stack application and solving real-world networking challenges (Reverse Proxy vs. CORS) on cloud infrastructure.
-2.  **Full-Stack ML Engineering**: Integrating a trained Scikit-Learn model into a high-performance FastAPI backend and visualizing results in a modern React dashboard.
-3.  **Resilient Architecture**: Designing a system where the frontend (Static) and backend (API) are loosely coupled but deployed together for simplicity and performance.
-4.  **Debugging & Observability**: Implementing robust logging to catch silent ML failures (e.g., model version mismatches) and verify system health in a headless environment.
+### 1. Backend (Render / Local)
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `FRONTEND_URL` | URL of the frontend (for redirects) | `https://your-app.vercel.app` |
+| `BACKEND_URL` | (Optional) Force backend URL | `https://your-api.onrender.com` |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App ID | `Iv1...` |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth Secret | `a1b2...` |
+| `JWT_SECRET_KEY` | Secret for signing tokens | `supersecret` |
+
+### 2. Frontend (Vercel / Local)
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | URL of the Backend API | `https://your-api.onrender.com/api` |
 
 ---
----
 
-##  Authentication (OAuth2)
+## 🛠 Local Development via Docker
 
-The system supports OAuth2 login via **Google** and **GitHub**.
+You can run the entire stack locally using Docker Compose, or run services individually.
 
-### Setup
-1.  Copy `.env.example` to `.env` in the root directory.
-2.  Add your OAuth credentials:
+### Prerequisites
+-   Docker & Docker Compose
+-   GitHub OAuth App (callback: `http://localhost:8000/api/auth/callback/github`)
+
+### Quick Start
+1.  **Clone the Repo**:
+    ```bash
+    git clone https://github.com/your-username/predictive-maintenance-system.git
+    cd predictive-maintenance-system
+    ```
+
+2.  **Setup Env**:
+    Create `.env` in the root:
     ```ini
-    GOOGLE_CLIENT_ID=...
-    GOOGLE_CLIENT_SECRET=...
     GITHUB_CLIENT_ID=...
     GITHUB_CLIENT_SECRET=...
-    JWT_SECRET_KEY=your_secret_key
+    JWT_SECRET_KEY=dev_secret
+    FRONTEND_URL=http://localhost:5173
     ```
-3.  **Redirect URIs** to configure in your provider:
-    -   **Google/GitHub**: `http://localhost:8000/api/auth/callback/google` (or `github`)
 
-### How it Works
-1.  Frontend redirects user to `/api/auth/login/{provider}`.
-2.  Backend handles the handshake and code exchange.
-3.  Backend creates/updates user in `users.db` (SQLite).
-4.  Backend issues a JWT and redirects to Frontend `/auth/callback?token=...`.
-5.  Frontend stores token and attaches it to API requests (`Authorization: Bearer ...`).
+3.  **Run Backend**:
+    ```bash
+    python -m uvicorn backend.main:app --reload
+    ```
+
+4.  **Run Frontend**:
+    ```bash
+    cd frontend
+    npm install
+    npm run dev
+    ```
 
 ---
-*Last Updated: 2026-01-26*
+
+## 🧠 ML Model Details
+
+-   **Input**: Air Temperature, Process Temperature, RPM, Torque, Tool Wear.
+-   **Anomaly Detection**: `IsolationForest` identifies outliers/drift.
+-   **Failure Prediction**: `RandomForestClassifier` predicts machine failure (binary).
+-   **Training Data**: AI4I 2020 Predictive Maintenance Dataset.
+
+---
+
+## 🔒 Security
+
+-   **Authentication**: No passwords stored. Pure OAuth2 flow.
+-   **Sessions**: HTTP-only Cookies (Local) / Bearer Tokens (API).
+-   **Protection**: `ProxyHeadersMiddleware` ensures valid HTTPS handshakes behind Load Balancers (like Render/Vercel).
+-   **CORS**: Strictly typed to allow only the Vercel Frontend.
+
+---
+*Maintained by SteelPulse Team.*
