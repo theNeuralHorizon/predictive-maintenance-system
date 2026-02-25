@@ -11,6 +11,9 @@ from sklearn.preprocessing import StandardScaler
 
 # Import the newly created RNN resources
 from backend.models.rnn_model import PredictiveRNN, create_sequences
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, roc_curve, auc
 
 # Configure basic standard logger
 logger = logging.getLogger(__name__)
@@ -95,17 +98,26 @@ def train_lstm(X, y, save_dir: str, seq_length: int = 10, epochs: int = 5):
     
     logger.info("Training LSTM Model...")
     model.train()
+    epoch_losses = []
     for epoch in range(epochs):
         optimizer.zero_grad()
         outputs = model(X_tensor)
         loss = criterion(outputs, y_tensor)
         loss.backward()
         optimizer.step()
+        epoch_losses.append(loss.item())
         logger.info(f"Epoch {epoch+1}/{epochs} - Loss: {loss.item():.4f}")
         
     model_path = os.path.join(save_dir, "lstm_car_engine.pt")
     torch.save(model.state_dict(), model_path)
     logger.info(f"LSTM model saved to {model_path}")
+    
+    # Generate predictions for evaluation
+    model.eval()
+    with torch.no_grad():
+        preds = model(X_tensor).numpy()
+        
+    return epoch_losses, y_seq, preds
 
 if __name__ == "__main__":
     # Kaggle dataset path assuming it gets downloaded to data/raw
@@ -123,8 +135,58 @@ if __name__ == "__main__":
         
         # Train Models
         train_isolation_forest(X_scaled, save_dir=SAVE_DIR)
-        train_lstm(X_scaled, y, save_dir=SAVE_DIR)
+        epoch_losses, y_true, y_preds = train_lstm(X_scaled, y, save_dir=SAVE_DIR)
         
-        logger.info("Car Engine Case Study training pipeline completed successfully.")
+        # MLOps Evaluation Graphs
+        logger.info("Generating LSTM Evaluation Reports...")
+        reports_dir = "reports"
+        os.makedirs(reports_dir, exist_ok=True)
+        
+        # 1. Training History
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(1, len(epoch_losses)+1), epoch_losses, marker='o', color='#a855f7')
+        plt.title('LSTM Training Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('BCELoss')
+        plt.grid(True, alpha=0.3)
+        plt.savefig(os.path.join(reports_dir, "lstm_training_history.png"))
+        plt.close()
+        
+        # 2. Confusion Matrix
+        y_pred_classes = (y_preds > 0.5).astype(int)
+        cm = confusion_matrix(y_true, y_pred_classes)
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
+        plt.title('LSTM Confusion Matrix')
+        plt.xlabel('Predicted')
+        plt.ylabel('Actual')
+        plt.savefig(os.path.join(reports_dir, "lstm_confusion_matrix.png"))
+        plt.close()
+        
+        # 3. ROC Curve
+        fpr, tpr, _ = roc_curve(y_true, y_preds)
+        roc_auc = auc(fpr, tpr)
+        plt.figure(figsize=(8, 6))
+        plt.plot(fpr, tpr, color='#3b82f6', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('LSTM Receiver Operating Characteristic (ROC)')
+        plt.legend(loc="lower right")
+        plt.savefig(os.path.join(reports_dir, "lstm_roc_curve.png"))
+        plt.close()
+        
+        # 4. Probability Distribution
+        plt.figure(figsize=(10, 6))
+        sns.histplot(y_preds, bins=50, kde=True, color='#06b6d4')
+        plt.title('LSTM Predicted Probability Distribution')
+        plt.xlabel('Predicted Probability of Failure')
+        plt.ylabel('Frequency')
+        plt.savefig(os.path.join(reports_dir, "lstm_prob_distribution.png"))
+        plt.close()
+        
+        logger.info("Car Engine Case Study training pipeline completed successfully. Reports generated.")
     except Exception as e:
         logger.error(f"Training pipeline failed: {e}")

@@ -68,12 +68,22 @@ def predict_sequence(data: SequencePredictionRequest):
         raw_data = []
         for d in data.sequence:
             raw_data.append([
-                d.air_temperature,
-                d.process_temperature,
-                d.rotational_speed,
-                d.torque,
-                d.tool_wear
+                d.engine_rpm or 0.0,
+                d.oil_pressure_psi or 0.0,
+                d.coolant_temp_c or 0.0,
+                d.vibration_level or 0.0,
+                d.engine_temp_c or 0.0
             ])
+        
+        # Fix Training-Serving Skew: Apply the same scaler used during training
+        import os
+        import joblib
+        scaler_path = os.path.join("ml", "scaler_car_engine.pkl")
+        if os.path.exists(scaler_path):
+            scaler = joblib.load(scaler_path)
+            raw_data = scaler.transform(raw_data)
+        else:
+            logger.warning("scaler_car_engine.pkl not found! Inference will run on unscaled data, leading to skewed predictions.")
         
         # We need a sequence length of 10 if possible
         seq_length = min(10, len(raw_data))

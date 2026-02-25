@@ -29,25 +29,38 @@ class SensorSimulator:
             "engine_rpm": 2500.0,
             "oil_pressure_psi": 40.0,
             "coolant_temp_c": 90.0,
-            "vibration_level": 0.5
+            "vibration_level": 0.5,
+            "engine_temp_c": 100.0
         }
         self.noise_std_dev = noise_std_dev
+        self.tick = 0
         
     def generate_noisy_payload(self) -> Dict[str, Any]:
         """
         Generates a new payload by adding Gaussian noise to the baseline.
+        Simulates engine degradation over time to trigger LSTM failures.
         """
+        self.tick += 1
+        # Degradation increases over time, simulating a failing engine
+        degradation_factor = self.tick * 0.2
+
         noisy_payload = {}
         for key, value in self.baseline.items():
-            # Inject noise: N(0, std_dev)
-            noise = np.random.normal(0, self.noise_std_dev)
+            base_val = value
             
-            # For some values, we might want proportional noise, but additive works for a basic simulation
-            # Adjust noise scale based on the magnitude of the baseline value for realism
-            scale_factor = max(1.0, abs(value) * 0.05) # 5% of value as base std dev
+            # Apply targeted engine degradation to cause drifting out-of-bounds metrics
+            if key == "coolant_temp_c" or key == "engine_temp_c":
+                base_val += degradation_factor * 0.2
+            elif key == "vibration_level":
+                base_val += degradation_factor * 0.015
+            elif key == "oil_pressure_psi":
+                base_val -= degradation_factor * 0.15
+
+            # Inject noise: N(0, std_dev)
+            scale_factor = max(1.0, abs(base_val) * 0.05) # 5% of value as base std dev
             proportional_noise = np.random.normal(0, scale_factor * self.noise_std_dev)
             
-            noisy_val = value + proportional_noise
+            noisy_val = base_val + proportional_noise
             
             # Ensure no negative values for things like speed, temp (in K), pressure
             if noisy_val < 0 and key not in ['torque', 'vibration_level']:
