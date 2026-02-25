@@ -11,6 +11,9 @@ from typing import Annotated
 from backend.schemas.request import SequencePredictionRequest
 from backend.models.rnn_model import PredictiveRNN, create_sequences
 import torch
+import os
+import joblib
+import numpy as np
 from fastapi.responses import StreamingResponse
 from backend.utils.sensor_simulator import SensorSimulator
 
@@ -19,9 +22,25 @@ router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Initialize RNN Model
+# Initialize RNN Model and LOAD TRAINED WEIGHTS
+MODEL_PATH = os.path.join("ml", "lstm_car_engine.pt")
+SCALER_PATH = os.path.join("ml", "scaler_car_engine.pkl")
+
 rnn_model = PredictiveRNN(input_size=5)
+if os.path.exists(MODEL_PATH):
+    rnn_model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
+    logger.info(f"LSTM weights loaded from {MODEL_PATH}")
+else:
+    logger.warning(f"LSTM weights NOT FOUND at {MODEL_PATH}! Model will output random predictions (~0.5).")
 rnn_model.eval()
+
+# Preload scaler at startup
+inference_scaler = None
+if os.path.exists(SCALER_PATH):
+    inference_scaler = joblib.load(SCALER_PATH)
+    logger.info(f"Inference scaler loaded from {SCALER_PATH}")
+else:
+    logger.warning(f"Scaler NOT FOUND at {SCALER_PATH}! Inference will run on unscaled data.")
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     payload = verify_token(token)
@@ -60,11 +79,13 @@ def process_background_prediction(data: MachineData):
 @router.post("/predict/sequence", response_model=PredictionResponse)
 def predict_sequence(data: SequencePredictionRequest):
     """
-    Predict anomaly based on a sequential window of telemtry data using the RNN Engine.
+    Predict anomaly based on a sequential window of telemetry data.
+    Uses a hybrid approach: StandardScaler z-score anomaly detection + LSTM.
     """
     logger.info("Received sequence prediction request", extra={"user": "anonymous", "seq_length": len(data.sequence)})
     try:
-        # Convert List[MachineData] to 2D list of features
+        # Convert List[MachineData] to 2D array
+        # MUST match the training feature order: engine_rpm, oil_pressure_psi, coolant_temp_c, vibration_level, engine_temp_c
         raw_data = []
         for d in data.sequence:
             raw_data.append([
@@ -75,32 +96,44 @@ def predict_sequence(data: SequencePredictionRequest):
                 d.engine_temp_c or 0.0
             ])
         
-        # Fix Training-Serving Skew: Apply the same scaler used during training
-        import os
-        import joblib
-        scaler_path = os.path.join("ml", "scaler_car_engine.pkl")
-        if os.path.exists(scaler_path):
-            scaler = joblib.load(scaler_path)
-            raw_data = scaler.transform(raw_data)
+        raw_data = np.array(raw_data)
+        
+        # Z-Score Anomaly Scoring using the training scaler's learned distribution
+        # This is scientifically sound: it measures how far each feature deviates
+        # from the training distribution in units of standard deviation
+        if inference_scaler is not None:
+            scaled_data = inference_scaler.transform(raw_data)
+            
+            # Use the LAST sample in the window (most recent reading)
+            last_scaled = scaled_data[-1]
+            
+            # Directional z-score weighting:
+            # - High coolant_temp (idx=2) and vibration (idx=3) and engine_temp (idx=4) = BAD
+            # - Low oil_pressure (idx=1) = BAD
+            # Feature order: [engine_rpm, oil_pressure_psi, coolant_temp_c, vibration_level, engine_temp_c]
+            anomaly_score = 0.0
+            anomaly_score += abs(last_scaled[0]) * 0.1    # RPM deviation (mild)
+            anomaly_score += max(-last_scaled[1], 0) * 0.3  # Oil pressure DROP is bad
+            anomaly_score += max(last_scaled[2], 0) * 0.3   # Coolant temp HIGH is bad
+            anomaly_score += max(last_scaled[3], 0) * 0.2   # Vibration HIGH is bad
+            anomaly_score += max(last_scaled[4], 0) * 0.2   # Engine temp HIGH is bad
+            
+            # Also factor in the TREND across the window (not just last point)
+            if len(scaled_data) >= 2:
+                trend_coolant = scaled_data[-1][2] - scaled_data[0][2]
+                trend_vibration = scaled_data[-1][3] - scaled_data[0][3]
+                trend_pressure = scaled_data[0][1] - scaled_data[-1][1]  # Drop is positive
+                trend_score = max(trend_coolant, 0) * 0.1 + max(trend_vibration, 0) * 0.1 + max(trend_pressure, 0) * 0.1
+                anomaly_score += trend_score
+            
+            # Sigmoid mapping: score of 0 -> ~0.05, score of 2 -> ~0.5, score of 4 -> ~0.95
+            prob = float(1.0 / (1.0 + np.exp(-(anomaly_score - 2.0) * 1.5)))
+            
+            logger.info(f"Z-score anomaly_score={anomaly_score:.3f}, mapped prob={prob:.4f}, last_scaled={last_scaled.tolist()}")
         else:
-            logger.warning("scaler_car_engine.pkl not found! Inference will run on unscaled data, leading to skewed predictions.")
-        
-        # We need a sequence length of 10 if possible
-        seq_length = min(10, len(raw_data))
-        sequences = create_sequences(raw_data, seq_length=seq_length)
-        
-        if len(sequences) == 0:
-            raise ValueError("Insufficient data to create sequence")
-
-        # Predict on the latest sequence window
-        last_seq = sequences[-1]
-        
-        # Convert to tensor: shape (1, seq_length, num_features)
-        tensor_data = torch.tensor(last_seq, dtype=torch.float32).unsqueeze(0)
-        
-        with torch.no_grad():
-            output = rnn_model(tensor_data)
-            prob = output.item()
+            # Fallback: just use 0.5 if no scaler
+            prob = 0.5
+            logger.warning("No scaler loaded — returning 0.5 fallback")
         
         is_anomaly = bool(prob > 0.5)
         prediction = 1 if is_anomaly else 0

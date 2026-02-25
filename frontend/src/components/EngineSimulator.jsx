@@ -57,13 +57,13 @@ const EngineSimulator = () => {
       const runPrediction = async () => {
         setApiError(null);
         try {
-          // Format based on MachineData schema
+          // Format based on Car Engine MachineData schema — MUST match backend extraction order
           const payload = telemetry.map(t => ({
-            "Air temperature [K]": t.air_temperature,
-            "Process temperature [K]": t.process_temperature,
-            "Rotational speed [rpm]": t.rotational_speed,
-            "Torque [Nm]": t.torque,
-            "Tool wear [min]": t.tool_wear
+            engine_rpm: t.engine_rpm,
+            oil_pressure_psi: t.oil_pressure_psi,
+            coolant_temp_c: t.coolant_temp_c,
+            vibration_level: t.vibration_level,
+            engine_temp_c: t.engine_temp_c
           }));
 
           console.log("Triggering Inference API Payload:", payload);
@@ -188,8 +188,8 @@ const EngineSimulator = () => {
 
           {/* Inference Result */}
           <div className={`p-8 rounded-[2.5rem] border transition-all duration-500 ${apiError ? 'bg-rose-500/20 border-rose-500/50' :
-              !prediction ? 'bg-[#0d0d0f] border-white/5' :
-                prediction.anomaly ? 'bg-rose-500/10 border-rose-500/30' : 'bg-emerald-500/10 border-emerald-500/30'
+            !prediction ? 'bg-[#0d0d0f] border-white/5' :
+              prediction.anomaly ? 'bg-rose-500/10 border-rose-500/30' : 'bg-emerald-500/10 border-emerald-500/30'
             } relative overflow-hidden flex flex-col justify-center`}>
 
             <div className="relative z-10 flex flex-col items-center text-center">

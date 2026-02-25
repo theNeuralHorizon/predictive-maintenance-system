@@ -41,20 +41,22 @@ class SensorSimulator:
         Simulates engine degradation over time to trigger LSTM failures.
         """
         self.tick += 1
-        # Degradation increases over time, simulating a failing engine
-        degradation_factor = self.tick * 0.2
+        # AGGRESSIVE compounding degradation — reaches critical within ~30 ticks
+        degradation_factor = self.tick * 0.5 * (1 + self.tick * 0.05)
 
         noisy_payload = {}
         for key, value in self.baseline.items():
             base_val = value
             
             # Apply targeted engine degradation to cause drifting out-of-bounds metrics
-            if key == "coolant_temp_c" or key == "engine_temp_c":
-                base_val += degradation_factor * 0.2
+            if key == "coolant_temp_c":
+                base_val += degradation_factor * 1.5   # spike temp hard
+            elif key == "engine_temp_c":
+                base_val += degradation_factor * 1.2
             elif key == "vibration_level":
-                base_val += degradation_factor * 0.015
+                base_val += degradation_factor * 0.08  # ramp vibration
             elif key == "oil_pressure_psi":
-                base_val -= degradation_factor * 0.15
+                base_val -= degradation_factor * 0.8   # drain pressure fast
 
             # Inject noise: N(0, std_dev)
             scale_factor = max(1.0, abs(base_val) * 0.05) # 5% of value as base std dev

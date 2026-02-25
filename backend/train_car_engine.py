@@ -72,52 +72,81 @@ def train_isolation_forest(X, save_dir: str):
     joblib.dump(iso_forest, model_path)
     logger.info(f"Isolation Forest saved to {model_path}")
 
-def train_lstm(X, y, save_dir: str, seq_length: int = 10, epochs: int = 5):
+def train_lstm(X, y, save_dir: str, seq_length: int = 10, epochs: int = 100):
     """
-    Trains the new LSTM model on the formatted sequential data.
+    Trains the LSTM model with manual class weighting and train/val split.
+    Uses standard forward() (with sigmoid) + BCELoss for consistency.
     """
     logger.info(f"Creating sequences for LSTM (seq_length={seq_length})...")
-    # Need to create sequences for both X and y. 
-    # The label corresponds to the state at the end of each temporal window.
     X_seq = create_sequences(X.tolist(), seq_length=seq_length)
-    
     y_seq = y[seq_length - 1:]
     
     if len(X_seq) != len(y_seq):
         raise ValueError(f"Sequence mismatch: X={len(X_seq)}, y={len(y_seq)}")
-        
-    X_tensor = torch.tensor(X_seq, dtype=torch.float32)
-    y_tensor = torch.tensor(y_seq, dtype=torch.float32).unsqueeze(1)
     
-    # Initialize Model with dynamic feature input size
+    # Train/Val split (80/20)
+    split_idx = int(len(X_seq) * 0.8)
+    X_train, X_val = X_seq[:split_idx], X_seq[split_idx:]
+    y_train, y_val = y_seq[:split_idx], y_seq[split_idx:]
+    
+    X_train_t = torch.tensor(X_train, dtype=torch.float32)
+    y_train_t = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
+    X_val_t = torch.tensor(X_val, dtype=torch.float32)
+    y_val_t = torch.tensor(y_val, dtype=torch.float32).unsqueeze(1)
+    
+    # Compute manual class weights for BCELoss — CAPPED at 10x to prevent collapse
+    n_pos = y_train.sum()
+    n_neg = len(y_train) - n_pos
+    w_pos = min(n_neg / max(n_pos, 1), 10.0)  # Cap at 10x
+    w_neg = 1.0
+    logger.info(f"Class weighting: w_pos={w_pos:.2f}, w_neg={w_neg:.2f} (neg={n_neg}, pos={n_pos})")
+    
+    # Build per-sample weight tensor for training set
+    sample_weights_train = torch.where(y_train_t == 1, w_pos, w_neg)
+    sample_weights_val = torch.where(y_val_t == 1, w_pos, w_neg)
+    
     input_size = X.shape[1]
     model = PredictiveRNN(input_size=input_size, hidden_size=64, num_layers=2)
-    criterion = nn.BCELoss()
-    # Adding some weight decay for stabilization
-    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    criterion = nn.BCELoss(reduction='none')  # no reduction so we can apply manual weights
+    optimizer = optim.Adam(model.parameters(), lr=0.003, weight_decay=1e-5)  # Higher LR
     
-    logger.info("Training LSTM Model...")
+    logger.info(f"Training LSTM Model for {epochs} epochs...")
     model.train()
-    epoch_losses = []
+    train_losses = []
+    val_losses = []
+    
     for epoch in range(epochs):
         optimizer.zero_grad()
-        outputs = model(X_tensor)
-        loss = criterion(outputs, y_tensor)
-        loss.backward()
+        outputs = model(X_train_t)  # forward() with sigmoid
+        raw_loss = criterion(outputs, y_train_t)
+        weighted_loss = (raw_loss * sample_weights_train).mean()
+        weighted_loss.backward()
         optimizer.step()
-        epoch_losses.append(loss.item())
-        logger.info(f"Epoch {epoch+1}/{epochs} - Loss: {loss.item():.4f}")
+        train_losses.append(weighted_loss.item())
         
+        # Validation loss
+        model.eval()
+        with torch.no_grad():
+            val_out = model(X_val_t)
+            val_raw = criterion(val_out, y_val_t)
+            val_weighted = (val_raw * sample_weights_val).mean()
+            val_losses.append(val_weighted.item())
+        model.train()
+        
+        if (epoch + 1) % 10 == 0:
+            logger.info(f"Epoch {epoch+1}/{epochs} - Train Loss: {weighted_loss.item():.4f} | Val Loss: {val_weighted.item():.4f}")
+    
     model_path = os.path.join(save_dir, "lstm_car_engine.pt")
     torch.save(model.state_dict(), model_path)
     logger.info(f"LSTM model saved to {model_path}")
     
-    # Generate predictions for evaluation
+    # Generate predictions for evaluation using forward() with sigmoid
     model.eval()
+    X_all_t = torch.tensor(X_seq, dtype=torch.float32)
     with torch.no_grad():
-        preds = model(X_tensor).numpy()
+        preds = model(X_all_t).numpy()
         
-    return epoch_losses, y_seq, preds
+    return train_losses, val_losses, y_seq, preds
 
 if __name__ == "__main__":
     # Kaggle dataset path assuming it gets downloaded to data/raw
@@ -135,19 +164,22 @@ if __name__ == "__main__":
         
         # Train Models
         train_isolation_forest(X_scaled, save_dir=SAVE_DIR)
-        epoch_losses, y_true, y_preds = train_lstm(X_scaled, y, save_dir=SAVE_DIR)
+        train_losses, val_losses, y_true, y_preds = train_lstm(X_scaled, y, save_dir=SAVE_DIR)
         
         # MLOps Evaluation Graphs
         logger.info("Generating LSTM Evaluation Reports...")
         reports_dir = "reports"
         os.makedirs(reports_dir, exist_ok=True)
         
-        # 1. Training History
+        # 1. Training History (Train vs Val Loss)
         plt.figure(figsize=(10, 6))
-        plt.plot(range(1, len(epoch_losses)+1), epoch_losses, marker='o', color='#a855f7')
-        plt.title('LSTM Training Loss')
+        epochs_range = range(1, len(train_losses)+1)
+        plt.plot(epochs_range, train_losses, marker='o', color='#a855f7', label='Train Loss', markersize=3)
+        plt.plot(epochs_range, val_losses, marker='s', color='#3b82f6', label='Val Loss', markersize=3)
+        plt.title('LSTM Training History')
         plt.xlabel('Epoch')
-        plt.ylabel('BCELoss')
+        plt.ylabel('BCEWithLogitsLoss')
+        plt.legend()
         plt.grid(True, alpha=0.3)
         plt.savefig(os.path.join(reports_dir, "lstm_training_history.png"))
         plt.close()

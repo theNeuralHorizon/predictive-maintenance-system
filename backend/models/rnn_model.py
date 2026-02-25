@@ -40,6 +40,14 @@ class PredictiveRNN(nn.Module):
         out = self.sigmoid(out)
         return out
 
+    def lstm_forward_logits(self, x):
+        """Returns raw logits WITHOUT sigmoid — for BCEWithLogitsLoss during training."""
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+        return out
+
 def create_sequences(data: list[list[float]], seq_length: int = 10):
     """
     Takes a 2D array or list of tabular data (samples x features) and creates 
