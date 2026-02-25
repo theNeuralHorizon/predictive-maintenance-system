@@ -58,11 +58,11 @@ def process_background_prediction(data: MachineData):
         logger.error("Background prediction failed", extra={"error": str(e)})
 
 @router.post("/predict/sequence", response_model=PredictionResponse)
-def predict_sequence(data: SequencePredictionRequest, user: Annotated[dict, Depends(get_current_user)]):
+def predict_sequence(data: SequencePredictionRequest):
     """
     Predict anomaly based on a sequential window of telemtry data using the RNN Engine.
     """
-    logger.info("Received sequence prediction request", extra={"user": user['sub'], "seq_length": len(data.sequence)})
+    logger.info("Received sequence prediction request", extra={"user": "anonymous", "seq_length": len(data.sequence)})
     try:
         # Convert List[MachineData] to 2D list of features
         raw_data = []
