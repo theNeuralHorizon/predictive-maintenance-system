@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel, Field
 
 class MachineData(BaseModel):
@@ -19,3 +20,7 @@ class MachineData(BaseModel):
                 "Tool wear [min]": 0
             }
         }
+
+class SequencePredictionRequest(BaseModel):
+    sequence: List[MachineData] = Field(..., description="List of sequential machine data points for RNN inference")
+
