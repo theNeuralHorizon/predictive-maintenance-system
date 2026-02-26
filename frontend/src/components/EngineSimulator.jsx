@@ -27,6 +27,10 @@ const EngineSimulator = () => {
     const url = `${API_BASE}/simulate?noise_level=${noiseLevel}`;
     const source = new EventSource(url);
 
+    source.onopen = () => {
+      console.log("🟢 SSE Connection successfully opened!");
+    };
+
     source.onmessage = (event) => {
       const data = JSON.parse(event.data);
       setLiveData(data);
@@ -39,7 +43,14 @@ const EngineSimulator = () => {
     };
 
     source.onerror = (error) => {
-      console.error("SSE Error:", error);
+      console.error("🔴 SSE Connection Error. EventSource State:", source.readyState);
+      if (source.readyState === EventSource.CONNECTING) {
+        console.warn("⚠️ SSE is reconnecting...");
+      } else if (source.readyState === EventSource.CLOSED) {
+        console.error("❌ SSE connection was closed by the server or network.");
+      } else {
+        console.error("❓ Unknown SSE Error:", error);
+      }
       source.close();
       setIsStreaming(false);
     };
