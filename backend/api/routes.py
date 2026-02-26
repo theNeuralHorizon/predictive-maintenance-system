@@ -199,5 +199,10 @@ def simulate_sensors(noise_level: float = 0.5):
     simulator = SensorSimulator(noise_std_dev=noise_level)
     return StreamingResponse(
         simulator.stream_data(delay_seconds=1.0), 
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
     )

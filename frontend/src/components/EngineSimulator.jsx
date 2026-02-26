@@ -3,6 +3,8 @@ import { Activity, AlertTriangle, ShieldCheck, Settings, Play, Pause, Zap, Fan, 
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
 const EngineSimulator = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [noiseLevel, setNoiseLevel] = useState(0.5);
@@ -19,7 +21,7 @@ const EngineSimulator = () => {
     }
 
     // Connect to SSE stream
-    const url = `http://localhost:8000/api/simulate?noise_level=${noiseLevel}`;
+    const url = `${API_BASE}/simulate?noise_level=${noiseLevel}`;
     const source = new EventSource(url, { withCredentials: true });
 
     source.onmessage = (event) => {
@@ -68,7 +70,7 @@ const EngineSimulator = () => {
 
           console.log("Triggering Inference API Payload:", payload);
 
-          const response = await axios.post('http://localhost:8000/api/predict/sequence', { sequence: payload }, { withCredentials: true });
+          const response = await axios.post(`${API_BASE}/predict/sequence`, { sequence: payload }, { withCredentials: true });
 
           console.log("Inference API Response:", response.data);
           setPrediction(response.data);
