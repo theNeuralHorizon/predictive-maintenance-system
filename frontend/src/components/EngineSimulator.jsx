@@ -20,7 +20,7 @@ const EngineSimulator = () => {
 
     // Connect to SSE stream
     const url = `http://localhost:8000/api/simulate?noise_level=${noiseLevel}`;
-    const source = new EventSource(url);
+    const source = new EventSource(url, { withCredentials: true });
 
     source.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -68,7 +68,7 @@ const EngineSimulator = () => {
 
           console.log("Triggering Inference API Payload:", payload);
 
-          const response = await axios.post('http://localhost:8000/api/predict/sequence', { sequence: payload });
+          const response = await axios.post('http://localhost:8000/api/predict/sequence', { sequence: payload }, { withCredentials: true });
 
           console.log("Inference API Response:", response.data);
           setPrediction(response.data);
