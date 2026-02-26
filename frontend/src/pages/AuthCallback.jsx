@@ -18,7 +18,7 @@ const AuthCallback = () => {
             console.error("Auth Error:", error);
             navigate('/');
         }
-    }, [searchParams, login]);
+    }, [searchParams, login, navigate]);
 
     useEffect(() => {
         if (user) {

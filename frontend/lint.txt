@@ -1,0 +1,36 @@
+﻿
+> frontend@0.0.0 lint
+> eslint .
+
+
+C:\Users\kshit\OneDrive\Desktop\codespace\predictive-maintenance-system\frontend\src\context\AuthContext.jsx
+  19:21  error  Error: Cannot access variable before it is declared
+
+`logout` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+  17 |                 // Check expiry
+  18 |                 if (payload.exp * 1000 < Date.now()) {
+> 19 |                     logout();
+     |                     ^^^^^^ `logout` accessed before it is declared
+  20 |                 } else {
+  21 |                     setUser(payload);
+  22 |                     localStorage.setItem('token', token);
+
+  37 |     };
+  38 |
+> 39 |     const logout = () => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^
+> 40 |         setToken(null);
+     | ^^^^^^^^^^^^^^^^^^^^^^^
+> 41 |         setUser(null);
+     | ^^^^^^^^^^^^^^^^^^^^^^^
+> 42 |         localStorage.removeItem('token');
+     | ^^^^^^^^^^^^^^^^^^^^^^^
+> 43 |     };
+     | ^^^^^^^ `logout` is declared here
+  44 |
+  45 |     return (
+  46 |         <AuthContext.Provider value={{ user, token, login, logout, loading }}>  react-hooks/immutability
+
+Γ£û 1 problem (1 error, 0 warnings)
+

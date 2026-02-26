@@ -53,8 +53,7 @@ import {
  * POWERED BY GEMINI 2.5 FLASH
  */
 
-// API Key injected by environment
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+// API Key injected by environment (Removed unused apiKey variable)
 
 const Dashboard = () => {
     // --- STATE ---
@@ -277,6 +276,7 @@ const Dashboard = () => {
         if (currentStatus) {
             generateAiInsight();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentStatus?.label]);
 
     // --- EXPORT ---

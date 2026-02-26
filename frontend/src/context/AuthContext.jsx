@@ -1,4 +1,5 @@
-
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
@@ -7,6 +8,16 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
+
+    const login = (newToken) => {
+        setToken(newToken);
+    };
+
+    const logout = () => {
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem('token');
+    };
 
     useEffect(() => {
         if (token) {
@@ -31,16 +42,6 @@ export const AuthProvider = ({ children }) => {
         }
         setLoading(false);
     }, [token]);
-
-    const login = (newToken) => {
-        setToken(newToken);
-    };
-
-    const logout = () => {
-        setToken(null);
-        setUser(null);
-        localStorage.removeItem('token');
-    };
 
     return (
         <AuthContext.Provider value={{ user, token, login, logout, loading }}>

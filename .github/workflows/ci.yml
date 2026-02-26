@@ -26,12 +26,11 @@ jobs:
         
     - name: Run Pytest
       run: |
-        cd backend
-        pytest
+        pytest tests/ test_api.py
       env:
         JWT_SECRET_KEY: "test_secret_key"
         FRONTEND_URL: "http://localhost:5173"
-        PYTHONPATH: ".."
+        PYTHONPATH: "."
 
   frontend-tests:
     runs-on: ubuntu-latest

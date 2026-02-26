@@ -61,7 +61,7 @@ export const predictFailure = async (sensorData) => {
             try {
                 const errorData = await response.json();
                 if (errorData.detail) errorMsg = errorData.detail;
-            } catch (_) { /* ignore JSON parse error */ }
+            } catch { /* ignore JSON parse error */ }
             throw new Error(errorMsg);
         }
 
