@@ -43,3 +43,6 @@ httpx==0.27.0
 python-jose==3.3.0
 itsdangerous==2.1.2
 pydantic-settings==2.1.0
+
+# RNN Model Dependencies
+torch>=2.0.0

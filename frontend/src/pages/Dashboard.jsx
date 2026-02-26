@@ -502,6 +502,11 @@ const Dashboard = () => {
                         <button onClick={() => setIsSettingsOpen(true)} className={`p-2.5 rounded-xl border transition-all ${isSettingsOpen ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-400'}`}>
                             <Settings className="w-5 h-5" />
                         </button>
+
+                        <a href="/simulator" className="px-4 py-2.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white border border-indigo-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+                            RNN Sim
+                        </a>
+
                         <div className="flex items-center gap-2 pl-4 border-l border-white/10">
                             {user && (
                                 <div className="flex items-center gap-3">

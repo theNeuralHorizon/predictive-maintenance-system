@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import EngineSimulator from './components/EngineSimulator';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -30,6 +31,11 @@ const App = () => {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/simulator" element={
+            <ProtectedRoute>
+              <EngineSimulator />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" />} />
